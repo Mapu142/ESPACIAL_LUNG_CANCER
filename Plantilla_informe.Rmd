@@ -14,7 +14,6 @@ institute: |
   Bogotá, Colombia
   
 output:
-
   # html_document:
   pdf_document:
     toc: true
@@ -57,15 +56,7 @@ kable(variables, caption = "Definición de variables principales en la base de d
 
 ```
 
-------------------------------------------------------------------------
-
-# Descripción de la base de datos
-
-Describir aquí de manera muy general el objetivo de la investigación sin entrar en detalles de cómo se desarrollará la investigación, como se describe en el objetivo general del problema de investigación presentado en [la sección anterior](#PrInv).
-
-*Establecer la variabilidad espacial de la amenaza por potencial de licuación*[^1] a nivel aproximado para las zonas aluviales, lacustres y de llanura de inundación de Bogotá.
-
-[^1]: *La licuefacción de suelos es un fenómeno en el cual los terrenos pierden la firmeza y por lo tanto las edificaciones se desplazan, se caen o se hunden.*
+Hay 12 variables por año (4 combinaciones de género-raza × 3 tipos: casos detallados, población detallada, totales por género)
 
 ------------------------------------------------------------------------
 
