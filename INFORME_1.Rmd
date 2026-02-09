@@ -5,10 +5,11 @@ date: "2026-02-08"
 output: pdf_document
 ---
 # Librerías
-```{r}
+```{r, show = False}
 #--------------------------------- Librerías ----------------------------------#
-library(readr)
-library(dplyr)
+library(readr) #leer csv
+library(dplyr) #manejo de datos
+library(ggplot2) #gráficas
 ```
 
 # Data
@@ -24,18 +25,38 @@ head(ohlung,10)
 ```{r}
 ohlung %>% select(-c("LM68","LF68","LM78","LF78","LM88","LF88",
                      "POPM68","POPF68","POPM78","POPF78","POPM88","POPF88"))
-str(ohlung)
+tabla1 <- ohlung %>% select(COUNTYID,NAME,AREA,PERIMETER,Casos=LFW88,
+                            Poblacion=POPFW88)
+tabla2 <- ohlung %>% select(COUNTYID,NAME,AREA,PERIMETER,Casos=LFB88,
+                            Poblacion=POPFB88)
+mujeres88 <- bind_rows(tabla1,tabla2)
+mujeres88 <- mujeres88 %>% mutate(Raza=c(rep("W",88),rep("B",88)))
+mujeres88$Raza <- as.factor(mujeres88$Raza)
+str(mujeres88)
 ```
 
 ```{r}
-
+boxplot(Casos ~ Raza, data=mujeres88)
+```
+Los casos son menos dispersos en los negros que en los blancos.
+```{r}
+plot(mujeres88$Casos)
 ```
 
 ```{r}
+casos_condado <- mujeres88 %>%
+  group_by(NAME) %>%
+  summarise(casos = sum(Casos, na.rm = TRUE)) %>% arrange(desc(casos))
 
-```
-
-```{r}
+ggplot(head(casos_condado,15), aes(x = reorder(NAME, casos), y = casos)) +
+  geom_col(fill = "steelblue") +
+  coord_flip() +
+  labs(
+    title = "Casos de cáncer en mujeres (1988)",
+    x = "Condado",
+    y = "Número de casos"
+  ) +
+  theme_minimal()
 
 ```
 
