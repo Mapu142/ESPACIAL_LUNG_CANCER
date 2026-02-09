@@ -10,6 +10,7 @@ output: pdf_document
 library(readr) #leer csv
 library(dplyr) #manejo de datos
 library(ggplot2) #gráficas
+library(knitr) #Para mostrar tablas
 ```
 
 # Data
@@ -30,7 +31,7 @@ tabla1 <- ohlung %>% select(COUNTYID,NAME,AREA,PERIMETER,Casos=LFW88,
 tabla2 <- ohlung %>% select(COUNTYID,NAME,AREA,PERIMETER,Casos=LFB88,
                             Poblacion=POPFB88)
 mujeres88 <- bind_rows(tabla1,tabla2)
-mujeres88 <- mujeres88 %>% mutate(Raza=c(rep("W",88),rep("B",88)))
+mujeres88 <- mujeres88 %>% mutate(Raza=c(rep("W",88),rep("B",88))) 
 mujeres88$Raza <- as.factor(mujeres88$Raza)
 str(mujeres88)
 ```
@@ -61,15 +62,55 @@ ggplot(head(casos_condado,15), aes(x = reorder(NAME, casos), y = casos)) +
 ```
 
 ```{r}
+top_condados <- mujeres88 %>%
+  group_by(NAME) %>%
+  summarise(total_casos = sum(Casos, na.rm = TRUE)) %>%
+  slice_max(total_casos, n = 10)
+
+
+ggplot(
+  mujeres88 %>% filter(NAME %in% top_condados$NAME),
+  aes(
+    x = reorder(NAME, ave(Casos, NAME, FUN = sum)),
+    y = Casos,
+    fill = Raza
+  )
+) +
+  geom_col() +
+  coord_flip() +
+  labs(
+    title = "Casos de cáncer en mujeres por condado y raza (1988)",
+    x = "Condado",
+    y = "Número de casos",
+    fill = "Raza"
+  ) +
+  theme_minimal()
+
 
 ```
 
 ```{r}
+ggplot(mujeres88 %>% filter(NAME %in% top_condados$NAME), 
+       aes(x = NAME, y = Casos, fill = Raza)) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Casos de cáncer en mujeres por condado y raza (1988)",
+    x = "Condado",
+    y = "Número de casos",
+    fill = "Raza"
+  ) +
+  theme_minimal()
 
 ```
 
 ```{r}
-
+top_condados2 <-  mujeres88 %>%  
+  group_by(NAME) %>%
+  summarise(total_casos = sum(Casos, na.rm = TRUE),
+            area = first(AREA)) %>% 
+  slice_max(total_casos, n = 10)
+kable(top_condados2, caption = "Top 10 condados con más casos")
 ```
 
 ```{r}
