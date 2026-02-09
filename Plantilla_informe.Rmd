@@ -152,6 +152,48 @@ knitr::kable(head(ohlung_subset5),
 
 ```
 
+------------------------------------------------------------------------
+
+# Análisis descriptivo {#AnalisisDescriptivo}
+
+En esta sección se realiza una exploración exhaustiva de la base de datos con el fin de identificar relaciones entre las variables, detectar posibles transformaciones y establecer la estructura inicial del modelo de regresión lineal múltiple.
+
+```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr) 
+
+# Estadísticas resumidas
+desc_stats <- ohlung %>%
+  summarise(
+    across(starts_with("LM"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("LF"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("POPM"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}"),
+    across(starts_with("POPF"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}")
+  ) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Valor") %>%
+  mutate(Variable = gsub("_", " ", Variable))
+
+# Dividir la tabla en dos columnas laterales
+n <- nrow(desc_stats)
+mitad <- ceiling(n / 2)
+
+izq <- desc_stats[1:mitad, , drop = FALSE]
+der <- desc_stats[(mitad + 1):n, , drop = FALSE]
+
+# Ajustar filas para igualar altura
+if (nrow(izq) > nrow(der)) {
+  der <- rbind(der, data.frame(Variable = "", Valor = NA, stringsAsFactors = FALSE))
+}
+
+# Combinar horizontalmente con nombres únicos
+tabla_final <- cbind( izq, der)
+
+knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de casos y población",
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
+```
+
 ```{r graficos-univariados, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyr)
 library(ggplot2)
@@ -233,59 +275,206 @@ p_casos
 p_poblacion
 ```
 
-------------------------------------------------------------------------
+```{r graficos-univariados2, echo=FALSE, fig.height=4, fig.width=10, message=FALSE, warning=FALSE}
 
-# Análisis descriptivo {#AnalisisDescriptivo}
+# Preparar datos para superposición (escalar para comparar formas)
+ohlung_geo_scaled <- ohlung %>%
+  dplyr::select(AREA, PERIMETER) %>%
+  tidyr::pivot_longer(c(AREA, PERIMETER), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    variable = dplyr::case_when(
+      variable == "AREA" ~ "Área (km²)",
+      variable == "PERIMETER" ~ "Perímetro (km)"
+    ),
+    valor_escalado = as.numeric(scale(valor))  # Estandarizar para superposición
+  )
 
-En esta sección se realiza una exploración exhaustiva de la base de datos con el fin de identificar relaciones entre las variables, detectar posibles transformaciones y establecer la estructura inicial del modelo de regresión lineal múltiple.
+# Preparar datos sin escalar para contexto absoluto
+ohlung_geo_raw <- ohlung %>%
+  dplyr::select(AREA, PERIMETER) %>%
+  tidyr::pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    variable = dplyr::case_when(
+      variable == "AREA" ~ "Área",
+      variable == "PERIMETER" ~ "Perímetro"
+    )
+  )
 
+# Paleta suave
+colores <- c("Área (km²)" = "#009E73", "Perímetro (km)" = "#CC79A7")
 
-```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
-library(tidyr) 
+# ===== GRÁFICO 2: Histogramas separados (escalas reales) =====
+p2 <- ggplot(ohlung_geo_raw, aes(x = valor, fill = variable)) +
+  geom_histogram(bins = 25, alpha = 0.85, color = "white", linewidth = 0.4) +
+  facet_wrap(~ variable, scales = "free_x", ncol = 2) +
+  scale_fill_manual(values = c("Área" = "#009E73", "Perímetro" = "#CC79A7")) +
+  labs(
+    title = "Distribución absoluta: Área y Perímetro de condados",
+    x = "Valor real", y = "Frecuencia", fill = "Variable"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
 
-# Estadísticas resumidas
-desc_stats <- ohlung %>%
-  summarise(
-    across(starts_with("LM"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
-    across(starts_with("LF"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
-    across(starts_with("POPM"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}"),
-    across(starts_with("POPF"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}")
-  ) %>%
-  pivot_longer(everything(), names_to = "Variable", values_to = "Valor") %>%
-  mutate(Variable = gsub("_", " ", Variable))
+# Mostrar ambos gráficos
+p2
 
-# Dividir la tabla en dos columnas laterales
-n <- nrow(desc_stats)
-mitad <- ceiling(n / 2)
-
-izq <- desc_stats[1:mitad, , drop = FALSE]
-der <- desc_stats[(mitad + 1):n, , drop = FALSE]
-
-# Ajustar filas para igualar altura
-if (nrow(izq) > nrow(der)) {
-  der <- rbind(der, data.frame(Variable = "", Valor = NA, stringsAsFactors = FALSE))
-}
-
-# Combinar horizontalmente con nombres únicos
-tabla_final <- cbind( izq, der)
-
-knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de casos y población",
-      format = "latex",
-      booktabs = TRUE,
-      longtable = TRUE) %>%
-  kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
 ```
 
+Los histogramas muestran que las tasas tienen distribución asimétrica positiva (típica de conteos).
+
+```{r correlaciones, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+library(dplyr)
+library(corrplot)
+library(ppcor)
+library(gridExtra)
+# 
+# # Matriz de correlación con select() explícito
+# cor_matrix <- cor(
+#   ohlung %>% dplyr::select(dplyr::any_of(c("LMW68",    "POPMW68",  "LMB68", "POPMB68", "LFW68", "POPFW68", "LFB68", "POPFB68", "LMW78", "POPMW78", "LMB78", "POPMB78", "LFW78", "POPFW78", "LFB78", "POPFB78", "LMW88", "POPMW88", "LMB88", "POPMB88", "LFW88", "POPFW88", "LFB88", "POPFB88"))),
+#   use = "complete.obs"
+# )
+# 
+# corrplot(cor_matrix, method = "number", type = "upper", 
+#          title = "Género-Raza", 
+#          mar = c(1, 1, 1, 0), tl.cex = 0.45, number.cex = 0.45)
+# 
+# 
+# # Matriz de correlación con select() explícito
+# cor_matrix <- cor(
+#   ohlung %>% dplyr::select(dplyr::any_of(c("AREA", "PERIMETER", "LM68",    "POPM68", "LF68", "POPF68", "LM78", "POPM78", "LF78", "POPF78", "LM88", "POPM88", "LF88", "POPF88"))),
+#   use = "complete.obs"
+# )
+# 
+# corrplot(cor_matrix, method = "number", type = "upper", 
+#          title = "Género", 
+#          mar = c(1, 1, 1, 0), tl.cex = 0.45, number.cex = 0.45)
+# 
+# 
+# # Matriz de correlación con select() explícito
+# cor_matrix <- cor(
+#   ohlung %>% dplyr::select(dplyr::any_of(c("AREA", "PERIMETER", "LMW88", "POPMW88", "LMB88", "POPMB88", "LM88", "POPM88", "LFW88", "POPFW88", "LFB88", "POPFB88", "LF88", "POPF88"))),
+#   use = "complete.obs"
+# )
+# 
+# corrplot(cor_matrix, method = "number", type = "upper", 
+#          title = "Género-Raza (1988)", 
+#          mar = c(1, 1, 1, 0), tl.cex = 0.45, number.cex = 0.45)
+
+
+
+
+# Configurar layout 1 fila × 3 columnas
+par(mfrow = c(1, 3), mar = c(4, 2, 3, 1), oma = c(0, 0, 1, 0))
+
+# Paleta divergente profesional (azul-blanco-rojo)
+col_palette <- colorRampPalette(c("#053061", "#92C5DE", "#F7F7F7", "#FDAE61", "#67001F"))(100)
+
+# Correlograma 1: Género × Raza (1968-1988)
+m1 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
+  "LMW68","POPMW68","LMB68","POPMB68","LFW68","POPFW68","LFB68","POPFB68",
+  "LMW78","POPMW78","LMB78","POPMB78","LFW78","POPFW78","LFB78","POPFB78",
+  "LMW88","POPMW88","LMB88","POPMB88","LFW88","POPFW88","LFB88","POPFB88"
+))), use = "complete.obs")
+corrplot(m1, method = "color", type = "upper", tl.col = "black", tl.srt = 60, 
+         tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
+         title = "Género × Raza\n(1968-1988)", mar = c(10,0,7,0))
+
+# Correlograma 2: Género + Geografía (1968-1988)
+m2 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
+  "AREA","PERIMETER","LM68","POPM68","LF68","POPF68",
+  "LM78","POPM78","LF78","POPF78","LM88","POPM88","LF88","POPF88"
+))), use = "complete.obs")
+corrplot(m2, method = "color", type = "upper", tl.col = "black", tl.srt = 50, 
+         tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
+         title = "Género + Geografía\n(1968-1988)", mar = c(10,0,7,0))
+
+# Correlograma 3: Género × Raza + Geografía (1988)
+m3 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
+  "AREA","PERIMETER","LMW88","POPMW88","LMB88","POPMB88","LM88","POPM88",
+  "LFW88","POPFW88","LFB88","POPFB88","LF88","POPF88"
+))), use = "complete.obs")
+corrplot(m3, method = "color", type = "upper", tl.col = "black", tl.srt = 50, 
+         tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
+         title = "Género × Raza + Geografía\n(1988)", mar = c(10,0,7,0))
+
+# Título general centrado
+mtext("Matrices de correlación", outer = TRUE, cex = 1.4, font = 2, line = -1)
+
+# Restaurar parámetros gráficos originales
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) , oma = c(0, 0, 0, 0))
+
+
+
+# Correlaciones parciales como tabla (sin cat)
+pcor_results <- data.frame(
+  Relación = c(
+    "LM68 ~ AREA | POPM68",
+    "LM68 ~ PERIMETER | POPM68"
+  ),
+  Correlación_parcial = c(
+    round(pcor.test(ohlung$LM68, ohlung$AREA, ohlung$POPM68)$estimate, 3),
+    round(pcor.test(ohlung$LM68, ohlung$PERIMETER, ohlung$POPM68)$estimate, 3)
+  )
+)
+
+knitr::kable(pcor_results, 
+             caption = "Correlaciones parciales (controlando población masculina)",
+             format = "latex", booktabs = TRUE) %>%
+  kableExtra::kable_styling(full_width = FALSE, font_size = 8)
+
+```
 
 ------------------------------------------------------------------------
 
 # Modelo y verificación de supuestos {#ejem}
 
--   *Establecer un modelo multivariado a partir de una base de datos histórica de licuación a nivel mundial.*
--   *Caracterización geotécnica de materiales del subsuelo del área de estudio, a partir de información secundaria.*
--   *Tratamiento de datos de información secundaria en procura de obtener correlaciones entre datos del ensayo SPT y los datos derivados de la exploración indirecta (VS30).*
--   *Aplicar modelo definido de evaluación de potencial de licuación y generar la espacialización del potencial de licuación para el área de estudio.*
--   *Diseñar y presentar metodología de estudio y zonificación de licuación apropiada para las zonas aluvial, lacustre y llanura de inundación de Bogotá.*
+Para cumplir con el requisito de incluir al menos una variable cualitativa, reorganizamos los datos a formato largo con base en las variables originales. Esto genera las variables cualitativas `gender` (Masculino/Femenino) y `year` (1968/1978/1988) a partir de los nombres de las columnas existentes.
+
+```{r reshape-long, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr)
+library(stringr)
+
+ohlung_long <- ohlung %>%
+  dplyr::select(COUNTYID, NAME, AREA, PERIMETER,
+                LM68, LF68, POPM68, POPF68,
+                LM78, LF78, POPM78, POPF78,
+                LM88, LF88, POPM88, POPF88) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::matches("^(LM|LF|POPM|POPF)\\d{2}$"),
+    names_to = "temp",
+    values_to = "value"
+  ) %>%
+  dplyr::mutate(
+    gender = dplyr::if_else(stringr::str_detect(temp, "M"), "Male", "Female"),
+    year   = as.numeric(stringr::str_extract(temp, "\\d{2}")) + 1900,
+    type   = dplyr::if_else(stringr::str_detect(temp, "^L"), "cases", "pop")
+  ) %>%
+  dplyr::select(-temp) %>%  # Funciona con dplyr::select() explícito
+  tidyr::pivot_wider(names_from = type, values_from = value) %>%
+  dplyr::mutate(
+    gender = as.factor(gender),
+    year   = as.factor(year)
+  )
+
+knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
+```
+
+```{r modelo1, echo=FALSE, message=FALSE, warning=FALSE}
+modelo_1 <- lm(cases ~ AREA + PERIMETER + gender + year + pop, 
+                     data = ohlung_long)
+
+summary(modelo_1)
+
+modelo_2 <- lm(cases ~ gender + year + pop, 
+                     data = ohlung_long)
+
+summary(modelo_2)
+```
 
 ------------------------------------------------------------------------
 
