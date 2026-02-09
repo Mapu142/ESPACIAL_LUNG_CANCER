@@ -31,15 +31,16 @@ Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulm
 
 La siguiente tabla resume las variables principales de la base de datos:
 
-```{r echo=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```{r tabla1, echo=FALSE, message=FALSE, warning=FALSE}
+library(sf)
 library(dplyr)
+library(kableExtra)
 library(knitr)
 
 variables <- data.frame(
   Variable = c("CountyID", "NAME", "FIPSNO", "AREA", "PERIMETER", "RECORD_ID", "COUNTYID",
                "LGRyy", "POPGRyy", "LGyy", "POPGyy"),
-  Descripción = c("ID secuencial del condado (orden alfabético)",
+  Descripcion = c("ID secuencial del condado (orden alfabético)",
                   "Nombre del condado",
                   "Código FIPS del condado (numérico)",
                   "Área del polígono (condado)",
@@ -52,20 +53,229 @@ variables <- data.frame(
                   "Población total en riesgo por género G en año yy")
 )
 
-kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")
+knitr::kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")%>%
+  kable_styling(
+    font_size = 10,  # Tamaño de fuente reducido
+    latex_options = c("striped", "scale_down"),  # Escalado automático
+    full_width = FALSE
+  ) %>%
+  column_spec(2, width = "10cm") %>% # Ancho específico para descripción
+ column_spec(1, bold = TRUE) # Ancho específico para variable
+
+
 
 ```
 
 Hay 12 variables por año (4 combinaciones de género-raza × 3 tipos: casos detallados, población detallada, totales por género)
 
+```{r tabla2, echo=FALSE, message=FALSE, warning=FALSE}
+
+ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
+  st_drop_geometry() 
+
+ohlung_subset1 <- ohlung %>%
+  select(COUNTYID, NAME, FIPSNO, AREA, PERIMETER, LMW68, POPMW68, LMB68) %>%  head(6)
+
+# Formatear y presentar tabla
+knitr::kable(head(ohlung_subset1),
+             caption = "Primeros 6 datos",
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset2 <- ohlung %>%
+  select(POPMB68, LM68, POPM68, LFW68, POPFW68, LFB68, POPFB68, LF68, POPF68, LMW78) %>%  head(6)
+
+knitr::kable(head(ohlung_subset2),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset3 <- ohlung %>%
+  select(POPMW78, LMB78, POPMB78, LM78, POPM78, LFW78, POPFW78, LFB78, POPFB78) %>%  head(6)
+
+knitr::kable(head(ohlung_subset3),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset4 <- ohlung %>%
+  select(LF78, POPF78, LMW88, POPMW88, LMB88, POPMB88, LM88, POPM88, LFW88) %>%  head(6)
+
+knitr::kable(head(ohlung_subset4),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset5 <- ohlung %>%
+  select(POPFW88, LFB88, POPFB88, LF88, POPF88) %>%  head(6)
+
+knitr::kable(head(ohlung_subset5),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+```
+
+```{r graficos-univariados, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr)
+library(ggplot2)
+library(corrplot)
+library(ppcor)   # Para correlaciones parciales (instálalo si es necesario)
+
+
+# ===== CASOS POR RAZA Y GÉNERO =====
+ohlung_cases <- ohlung %>%
+  dplyr::select(dplyr::matches("^(LMW|LMB|LFW|LFB)(68|78|88)$")) %>%
+  tidyr::pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    año = factor(paste0("19", substr(variable, 4, 5)), levels = c("1968", "1978", "1988")),
+    género = dplyr::if_else(substr(variable, 1, 2) == "LM", "Hombres", "Mujeres"),
+    raza = dplyr::case_when(
+      substr(variable, 3, 3) == "W" ~ "Blancos",
+      substr(variable, 3, 3) == "B" ~ "Negros"
+    )
+  )
+
+# ===== POBLACIÓN POR RAZA Y GÉNERO =====
+ohlung_pop <- ohlung %>%
+  dplyr::select(dplyr::matches("^POP(MW|MB|FW|FB)(68|78|88)$")) %>%
+  tidyr::pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    año = factor(paste0("19", substr(variable, 6, 7)), levels = c("1968", "1978", "1988")),
+    género = dplyr::if_else(substr(variable, 4, 4) == "M", "Hombres", "Mujeres"),
+    raza = dplyr::case_when(
+      substr(variable, 5, 5) == "W" ~ "Blancos",
+      substr(variable, 5, 5) == "B" ~ "Negros"
+    )
+  )
+
+# Paleta colorblind-friendly (Wong palette)
+razas_colores <- c("Blancos" = "#E69F00", "Negros" = "#56B4E9")
+
+# ===== GRÁFICO 1: CASOS =====
+p_casos <- ggplot(ohlung_cases, aes(x = valor, fill = raza)) +
+  geom_histogram(position = "identity", alpha = 0.75, bins = 25, 
+                 color = "white", linewidth = 0.3) +
+  facet_grid(género ~ año, switch = "y") +
+  scale_fill_manual(values = razas_colores) +
+  labs(
+    title = "Distribución de casos de cáncer de pulmón por raza y género",
+    x = "Número de casos", y = "Frecuencia", fill = "Raza"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text.y.left = element_text(angle = 0, face = "bold", color = "#2C3E50"),
+    strip.text.x = element_text(face = "bold", color = "#2C3E50"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines")
+  )
+
+# ===== GRÁFICO 2: POBLACIÓN =====
+p_poblacion <- ggplot(ohlung_pop, aes(x = valor, fill = raza)) +
+  geom_histogram(position = "identity", alpha = 0.75, bins = 25, 
+                 color = "white", linewidth = 0.3) +
+  facet_grid(género ~ año, switch = "y") +
+  scale_fill_manual(values = razas_colores) +
+  labs(
+    title = "Distribución de población por raza y género",
+    x = "Tamaño poblacional", y = "Frecuencia", fill = "Raza"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text.y.left = element_text(angle = 0, face = "bold", color = "#2C3E50"),
+    strip.text.x = element_text(face = "bold", color = "#2C3E50"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines")
+  )
+
+# Mostrar ambos gráficos
+p_casos
+p_poblacion
+```
+
 ------------------------------------------------------------------------
 
-# Análisis descriptivo
+# Análisis descriptivo {#AnalisisDescriptivo}
 
--   *Proponer una metodología para la evaluación del potencial de licuación.*
--   *Establecer las condiciones geológicas, geomorfológicas, hidrogeológicas, geotécnicas y sísmicas de la zona de estudio.*
--   *Establecer el potencial de licuación de la zona de estudio.*
--   *Proponer una metodología para la zonificación de amenaza por potencial de licuación.*
+En esta sección se realiza una exploración exhaustiva de la base de datos con el fin de identificar relaciones entre las variables, detectar posibles transformaciones y establecer la estructura inicial del modelo de regresión lineal múltiple.
+
+
+```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr) 
+
+# Estadísticas resumidas
+desc_stats <- ohlung %>%
+  summarise(
+    across(starts_with("LM"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("LF"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("POPM"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}"),
+    across(starts_with("POPF"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}")
+  ) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Valor") %>%
+  mutate(Variable = gsub("_", " ", Variable))
+
+# Dividir la tabla en dos columnas laterales
+n <- nrow(desc_stats)
+mitad <- ceiling(n / 2)
+
+izq <- desc_stats[1:mitad, , drop = FALSE]
+der <- desc_stats[(mitad + 1):n, , drop = FALSE]
+
+# Ajustar filas para igualar altura
+if (nrow(izq) > nrow(der)) {
+  der <- rbind(der, data.frame(Variable = "", Valor = NA, stringsAsFactors = FALSE))
+}
+
+# Combinar horizontalmente con nombres únicos
+tabla_final <- cbind( izq, der)
+
+knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de casos y población",
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
+```
+
 
 ------------------------------------------------------------------------
 
