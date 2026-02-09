@@ -8,18 +8,22 @@ output: pdf_document
 ```{r}
 #--------------------------------- Librerías ----------------------------------#
 library(readr)
-
+library(dplyr)
 ```
 
 # Data
+
+La base de datos cuenta con el nombre de los condados y distintos identificadores como el código FIPS del condado, con variables geográficas como el área y perímetro, y con variables sobre la salud, como el número total de casos (L) o la población en riesgo (POP), desagregadas por género (Masculino, Femenino), raza (Blanco, Negro) y año (1968, 1978 y 1988). Teniendo en cuenta la descripción anterior la varible "LMW68" sería el número de casos de cáncer de pulmón de hombres blancos en el año 1968 y la variable "POPFB88", sería la población en riesgo de mujeres negras del año 1988. Además de esto se cuenta con vairables como "LM68" o "POPF88" lo que sería el total por género, sin embargo esto más adelante será retirado debido a su alta correlación y redundancia de información. 
 ```{r}
 #------------------------------------ Data ------------------------------------#
 ohlung <- read_csv("ohiolung/ohlung.csv")
-View(ohlung)
+head(ohlung,10)
 ```
 
-
+## Limpieza dela base de datos
 ```{r}
+ohlung %>% select(-c("LM68","LF68","LM78","LF78","LM88","LF88",
+                     "POPM68","POPF68","POPM78","POPF78","POPM88","POPF88"))
 str(ohlung)
 ```
 
