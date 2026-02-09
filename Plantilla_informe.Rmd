@@ -31,15 +31,16 @@ Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulm
 
 La siguiente tabla resume las variables principales de la base de datos:
 
-```{r echo=FALSE, message=FALSE}
-knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+```{r tabla1, echo=FALSE, message=FALSE, warning=FALSE}
+library(sf)
 library(dplyr)
+library(kableExtra)
 library(knitr)
 
 variables <- data.frame(
   Variable = c("CountyID", "NAME", "FIPSNO", "AREA", "PERIMETER", "RECORD_ID", "COUNTYID",
                "LGRyy", "POPGRyy", "LGyy", "POPGyy"),
-  Descripción = c("ID secuencial del condado (orden alfabético)",
+  Descripcion = c("ID secuencial del condado (orden alfabético)",
                   "Nombre del condado",
                   "Código FIPS del condado (numérico)",
                   "Área del polígono (condado)",
@@ -52,20 +53,111 @@ variables <- data.frame(
                   "Población total en riesgo por género G en año yy")
 )
 
-kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")
+knitr::kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")%>%
+  kable_styling(
+    font_size = 10,  # Tamaño de fuente reducido
+    latex_options = c("striped", "scale_down"),  # Escalado automático
+    full_width = FALSE
+  ) %>%
+  column_spec(2, width = "10cm") %>% # Ancho específico para descripción
+ column_spec(1, bold = TRUE) # Ancho específico para variable
+
+
 
 ```
 
 Hay 12 variables por año (4 combinaciones de género-raza × 3 tipos: casos detallados, población detallada, totales por género)
 
-------------------------------------------------------------------------
+```{r tabla2, echo=FALSE, message=FALSE, warning=FALSE}
 
-# Análisis descriptivo
+ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
+  st_drop_geometry() 
 
--   *Proponer una metodología para la evaluación del potencial de licuación.*
--   *Establecer las condiciones geológicas, geomorfológicas, hidrogeológicas, geotécnicas y sísmicas de la zona de estudio.*
--   *Establecer el potencial de licuación de la zona de estudio.*
--   *Proponer una metodología para la zonificación de amenaza por potencial de licuación.*
+ohlung_subset1 <- ohlung %>%
+  select(COUNTYID, NAME, FIPSNO, AREA, PERIMETER, LMW68, POPMW68, LMB68) %>%  head(6)
+
+# Formatear y presentar tabla
+knitr::kable(head(ohlung_subset1),
+             caption = "Primeros 6 datos",
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset2 <- ohlung %>%
+  select(POPMB68, LM68, POPM68, LFW68, POPFW68, LFB68, POPFB68, LF68, POPF68, LMW78) %>%  head(6)
+
+knitr::kable(head(ohlung_subset2),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset3 <- ohlung %>%
+  select(POPMW78, LMB78, POPMB78, LM78, POPM78, LFW78, POPFW78, LFB78, POPFB78) %>%  head(6)
+
+knitr::kable(head(ohlung_subset3),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset4 <- ohlung %>%
+  select(LF78, POPF78, LMW88, POPMW88, LMB88, POPMB88, LM88, POPM88, LFW88) %>%  head(6)
+
+knitr::kable(head(ohlung_subset4),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset5 <- ohlung %>%
+  select(POPFW88, LFB88, POPFB88, LF88, POPF88) %>%  head(6)
+
+knitr::kable(head(ohlung_subset5),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+```
+
+-----------------------------------------------------------------------
+
+# Análisis descriptivo {#AnalisisDescriptivo} 
+
+ A continuación se presenta una muestra representativa de la estructura de los datos. Por razones de espacio y legibilidad, se muestran únicamente las variables de identificación del condado y un subconjunto de las variables de mortalidad (agrupadas por década) que ilustran el patrón de codificación del conjunto de datos. 
+
 
 ------------------------------------------------------------------------
 
