@@ -1,0 +1,100 @@
+---
+title: |
+  Mortalidad por cáncer de pulmón en Ohio (décadas de 1960 a 1980)
+  
+
+author: |
+  **Maria Paula Camargo Rincon**^[mcamargori@unal.edu.co]
+  **Laura Katherine Martínez Castiblanco**^[laumartinezca@unal.edu.co]
+  
+institute: |
+  Departamento de Estadística  
+  Facultad de Ciencias  
+  Universidad Nacional de Colombia  
+  Bogotá, Colombia
+  
+output:
+  # html_document:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    latex_engine: xelatex
+fontsize: 12pt
+geometry: margin=2.5cm
+# bibliography: BiblioConsultoria1.bib
+---
+
+# Intriducción {#PrInv}
+
+Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
+
+La siguiente tabla resume las variables principales de la base de datos:
+
+```{r echo=FALSE, message=FALSE}
+knitr::opts_chunk$set(echo = TRUE, message = FALSE, warning = FALSE)
+library(dplyr)
+library(knitr)
+
+variables <- data.frame(
+  Variable = c("CountyID", "NAME", "FIPSNO", "AREA", "PERIMETER", "RECORD_ID", "COUNTYID",
+               "LGRyy", "POPGRyy", "LGyy", "POPGyy"),
+  Descripción = c("ID secuencial del condado (orden alfabético)",
+                  "Nombre del condado",
+                  "Código FIPS del condado (numérico)",
+                  "Área del polígono (condado)",
+                  "Perímetro del polígono (condado)",
+                  "ID único del registro",
+                  "ID del condado",
+                  "Casos de cáncer de pulmón para género G (M/F) y raza R (W/B) en año yy (1968, 1978, 1988)",
+                  "Población en riesgo para género G y raza R en año yy",
+                  "Total de casos de cáncer de pulmón por género G en año yy",
+                  "Población total en riesgo por género G en año yy")
+)
+
+kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")
+
+```
+
+Hay 12 variables por año (4 combinaciones de género-raza × 3 tipos: casos detallados, población detallada, totales por género)
+
+------------------------------------------------------------------------
+
+# Análisis descriptivo
+
+-   *Proponer una metodología para la evaluación del potencial de licuación.*
+-   *Establecer las condiciones geológicas, geomorfológicas, hidrogeológicas, geotécnicas y sísmicas de la zona de estudio.*
+-   *Establecer el potencial de licuación de la zona de estudio.*
+-   *Proponer una metodología para la zonificación de amenaza por potencial de licuación.*
+
+------------------------------------------------------------------------
+
+# Modelo y verificación de supuestos {#ejem}
+
+-   *Establecer un modelo multivariado a partir de una base de datos histórica de licuación a nivel mundial.*
+-   *Caracterización geotécnica de materiales del subsuelo del área de estudio, a partir de información secundaria.*
+-   *Tratamiento de datos de información secundaria en procura de obtener correlaciones entre datos del ensayo SPT y los datos derivados de la exploración indirecta (VS30).*
+-   *Aplicar modelo definido de evaluación de potencial de licuación y generar la espacialización del potencial de licuación para el área de estudio.*
+-   *Diseñar y presentar metodología de estudio y zonificación de licuación apropiada para las zonas aluvial, lacustre y llanura de inundación de Bogotá.*
+
+------------------------------------------------------------------------
+
+# Concluciones
+
+Aquí solo incluir lo que sugiere el consultante si lo hizo, de lo contrario dejar en blanco
+
+# Revisión bibliográfica
+
+**Fuentes propuestas por los consultantes:**\
+- @gareth2021introduction\
+- @pena2013analisis\
+- @schoenberg1935remarks\
+- @corradino1990proximity
+
+**Fuentes consultadas por el grupo:**\
+- @bib2\
+- @lapointe1994classification
+
+------------------------------------------------------------------------
+
+# Bibliografía
