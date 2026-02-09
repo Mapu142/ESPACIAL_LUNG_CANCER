@@ -4,4 +4,57 @@ author: "María Paula Camargo Rincón; Laura Katherine Castiblanco Martínez;"
 date: "2026-02-08"
 output: pdf_document
 ---
+# Librerías
+```{r}
+#--------------------------------- Librerías ----------------------------------#
+library(readr)
 
+```
+
+# Data
+```{r}
+#------------------------------------ Data ------------------------------------#
+ohlung <- read_csv("ohiolung/ohlung.csv")
+View(ohlung)
+```
+
+
+```{r}
+str(ohlung)
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```
