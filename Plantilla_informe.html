@@ -249,16 +249,6 @@ if (window.hljs) {
 
 
 
-<style type="text/css">
-p.abstract{
-text-align: center;
-font-weight: bold;
-}
-div.abstract{
-margin: auto;
-width: 90%;
-}
-</style>
 
 
 
@@ -362,39 +352,115 @@ display: none;
 (décadas de 1960 a 1980)</p></h1>
 <h4 class="author"><p><strong>Maria Paula Camargo Rincon</strong><a href="#fn1" class="footnote-ref" id="fnref1"><sup>1</sup></a>
 <strong>Laura Katherine Martínez Castiblanco</strong><a href="#fn2" class="footnote-ref" id="fnref2"><sup>2</sup></a></p></h4>
-<div class="abstract">
-<p class="abstract">Abstract</p>
-<p>El presente informe contiene los resultados de la consultoría “Título
-del documento pdf que les compartí”</p>
-<p>El experimento consiste en la aplicación de cuatro dietas con
-diferentes proporciones de Insentimentalina que actúan sobre el sistema
-sensorial de aves de rapiña. Entre los principales resultados se
-encuentra un modelo desbalanceado con efectos aleatorios no dinámicos a
-tres réplicas atemporales…</p>
-</div>
 
 </div>
 
+<div id="TOC">
+<ul>
+<li><a href="#PrInv" id="toc-PrInv"><span class="toc-section-number">1</span> Intriducción</a></li>
+<li><a href="#descripción-de-la-base-de-datos" id="toc-descripción-de-la-base-de-datos"><span class="toc-section-number">2</span> Descripción de la base de
+datos</a></li>
+<li><a href="#análisis-descriptivo" id="toc-análisis-descriptivo"><span class="toc-section-number">3</span> Análisis descriptivo</a></li>
+<li><a href="#ejem" id="toc-ejem"><span class="toc-section-number">4</span> Modelo y verificación de
+supuestos</a></li>
+<li><a href="#concluciones" id="toc-concluciones"><span class="toc-section-number">5</span> Concluciones</a></li>
+<li><a href="#revisión-bibliográfica" id="toc-revisión-bibliográfica"><span class="toc-section-number">6</span> Revisión bibliográfica</a></li>
+<li><a href="#bibliografía" id="toc-bibliografía"><span class="toc-section-number">7</span> Bibliografía</a></li>
+</ul>
+</div>
 
-<div id="PrInv" class="section level1">
-<h1>Problema de investigación</h1>
-<p>Describir aquí el problema desde el punto de vista del
-consultante.</p>
+<div id="PrInv" class="section level1" number="1">
+<h1><span class="header-section-number">1</span> Intriducción</h1>
+<p>Este conjunto de datos se deriva de un estudio de mortalidad por
+cáncer de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado.
+La base de datos <code>ohiolung</code> contiene información para los 88
+condados del estado de Ohio, (EE. UU.). La base de datos proviene del
+GeoDa (Center for Geospatial Analysis and Computation) y presenta 42
+variables. En las estas se presentan datos referentes a la mortalidad
+por cáncer de pulmón estratificada por género (masculino/femenino) y
+raza (blanca/negra), junto variables geográficas básicas.</p>
+<p>La siguiente tabla resume las variables principales de la base de
+datos:</p>
+<table>
+<caption>Definición de variables principales en la base de datos
+ohlung.shp</caption>
+<colgroup>
+<col width="10%" />
+<col width="90%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th align="left">Variable</th>
+<th align="left">Descripción</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td align="left">CountyID</td>
+<td align="left">ID secuencial del condado (orden alfabético)</td>
+</tr>
+<tr class="even">
+<td align="left">NAME</td>
+<td align="left">Nombre del condado</td>
+</tr>
+<tr class="odd">
+<td align="left">FIPSNO</td>
+<td align="left">Código FIPS del condado (numérico)</td>
+</tr>
+<tr class="even">
+<td align="left">AREA</td>
+<td align="left">Área del polígono (condado)</td>
+</tr>
+<tr class="odd">
+<td align="left">PERIMETER</td>
+<td align="left">Perímetro del polígono (condado)</td>
+</tr>
+<tr class="even">
+<td align="left">RECORD_ID</td>
+<td align="left">ID único del registro</td>
+</tr>
+<tr class="odd">
+<td align="left">COUNTYID</td>
+<td align="left">ID del condado</td>
+</tr>
+<tr class="even">
+<td align="left">LGRyy</td>
+<td align="left">Casos de cáncer de pulmón para género G (M/F) y raza R
+(W/B) en año yy (1968, 1978, 1988)</td>
+</tr>
+<tr class="odd">
+<td align="left">POPGRyy</td>
+<td align="left">Población en riesgo para género G y raza R en año
+yy</td>
+</tr>
+<tr class="even">
+<td align="left">LGyy</td>
+<td align="left">Total de casos de cáncer de pulmón por género G en año
+yy</td>
+</tr>
+<tr class="odd">
+<td align="left">POPGyy</td>
+<td align="left">Población total en riesgo por género G en año yy</td>
+</tr>
+</tbody>
+</table>
 <hr />
 </div>
-<div id="objetivo-general" class="section level1">
-<h1>Objetivo general</h1>
+<div id="descripción-de-la-base-de-datos" class="section level1" number="2">
+<h1><span class="header-section-number">2</span> Descripción de la base
+de datos</h1>
 <p>Describir aquí de manera muy general el objetivo de la investigación
 sin entrar en detalles de cómo se desarrollará la investigación, como se
 describe en el objetivo general del problema de investigación presentado
 en <a href="#PrInv">la sección anterior</a>.</p>
 <p><em>Establecer la variabilidad espacial de la amenaza por potencial
-de licuación<a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a> a nivel aproximado para las zonas
-aluviales, lacustres y de llanura de inundación de Bogotá.</em></p>
+de licuación</em><a href="#fn3" class="footnote-ref" id="fnref3"><sup>3</sup></a> a nivel aproximado para las zonas
+aluviales, lacustres y de llanura de inundación de Bogotá.</p>
 <hr />
 </div>
-<div id="objetivos-específicos" class="section level1">
-<h1>Objetivos específicos</h1>
+<div id="análisis-descriptivo" class="section level1" number="3">
+<h1><span class="header-section-number">3</span> Análisis
+descriptivo</h1>
 <ul>
 <li><em>Proponer una metodología para la evaluación del potencial de
 licuación.</em></li>
@@ -407,8 +473,9 @@ potencial de licuación.</em></li>
 </ul>
 <hr />
 </div>
-<div id="ejem" class="section level1">
-<h1>Problema(s) estadístico(s) por resolver</h1>
+<div id="ejem" class="section level1" number="4">
+<h1><span class="header-section-number">4</span> Modelo y verificación
+de supuestos</h1>
 <ul>
 <li><em>Establecer un modelo multivariado a partir de una base de datos
 histórica de licuación a nivel mundial.</em></li>
@@ -426,21 +493,14 @@ inundación de Bogotá.</em></li>
 </ul>
 <hr />
 </div>
-<div id="metodología-sugerida-por-el-consultante" class="section level1">
-<h1>Metodología sugerida por el consultante</h1>
+<div id="concluciones" class="section level1" number="5">
+<h1><span class="header-section-number">5</span> Concluciones</h1>
 <p>Aquí solo incluir lo que sugiere el consultante si lo hizo, de lo
 contrario dejar en blanco</p>
 </div>
-<div id="motodolgia-propuesta-por-el-grupo" class="section level1">
-<h1>Motodolgia propuesta por el grupo</h1>
-<p>Inclir aquí la metodología que el grupo utilizaría para resolver el
-problema, o para mejorar la propuesta del consultante.</p>
-</div>
-<div id="observaciones-y-sugerencias-de-mejora-para-el-consultante" class="section level1">
-<h1>Observaciones y sugerencias de mejora para el consultante</h1>
-</div>
-<div id="revisión-bibliográfica" class="section level1">
-<h1>Revisión bibliográfica</h1>
+<div id="revisión-bibliográfica" class="section level1" number="6">
+<h1><span class="header-section-number">6</span> Revisión
+bibliográfica</h1>
 <p><strong>Fuentes propuestas por los consultantes:</strong><br />
 - <span class="citation">@gareth2021introduction</span><br />
 - <span class="citation">@pena2013analisis</span><br />
@@ -451,17 +511,17 @@ problema, o para mejorar la propuesta del consultante.</p>
 - <span class="citation">@lapointe1994classification</span></p>
 <hr />
 </div>
-<div id="bibliografía" class="section level1">
-<h1>Bibliografía</h1>
+<div id="bibliografía" class="section level1" number="7">
+<h1><span class="header-section-number">7</span> Bibliografía</h1>
 </div>
 <div class="footnotes footnotes-end-of-document">
 <hr />
 <ol>
 <li id="fn1"><p><a href="mailto:mcamargori@unal.edu.co" class="email">mcamargori@unal.edu.co</a><a href="#fnref1" class="footnote-back">↩︎</a></p></li>
 <li id="fn2"><p><a href="mailto:laumartinezca@unal.edu.co" class="email">laumartinezca@unal.edu.co</a><a href="#fnref2" class="footnote-back">↩︎</a></p></li>
-<li id="fn3"><p>La licuefacción de suelos es un fenómeno en el cual los
-terrenos pierden la firmeza y por lo tanto las edificaciones se
-desplazan, se caen o se hunden.<a href="#fnref3" class="footnote-back">↩︎</a></p></li>
+<li id="fn3"><p><em>La licuefacción de suelos es un fenómeno en el cual
+los terrenos pierden la firmeza y por lo tanto las edificaciones se
+desplazan, se caen o se hunden.</em><a href="#fnref3" class="footnote-back">↩︎</a></p></li>
 </ol>
 </div>
 
