@@ -1,18 +1,11 @@
 ---
 title: |
-  Informe de Consultoría 
+  Mortalidad por cáncer de pulmón en Ohio (décadas de 1960 a 1980)
   
-  (**únicamente para casos de semestres anteriores**)
-  
-  **Caso I:** Dietas de Insentimentalina  
-  *Efecto de cuatro dietas alienogensis sobre la vida sentimental de las aves*  
-  **Grupo #9**
 
 author: |
-  **Ruimberto Hellman**^[rimhell@unal.edu.co], Universidad Nacional de Colombia  
-  **Helmuth Peterhaim**^[HelmutPet@unal.edu.co], Universidad Nacional de Colombia  
-  **Wilheim Mendez**^[wilheiMend@unal.edu.co], Universidad Nacional de Colombia  
-  **Wimberto Hartman**^[rimhell@unal.edu.co], Universidad Nacional de Colombia
+  **Maria Paula Camargo Rincon**^[mcamargori@unal.edu.co]
+  **Laura Katherine Martínez Castiblanco**^[laumartinezca@unal.edu.co]
   
 institute: |
   Departamento de Estadística  
