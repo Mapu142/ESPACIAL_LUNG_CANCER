@@ -152,11 +152,48 @@ knitr::kable(head(ohlung_subset5),
 
 ```
 
------------------------------------------------------------------------
+------------------------------------------------------------------------
 
-# Análisis descriptivo {#AnalisisDescriptivo} 
+# Análisis descriptivo {#AnalisisDescriptivo}
 
- A continuación se presenta una muestra representativa de la estructura de los datos. Por razones de espacio y legibilidad, se muestran únicamente las variables de identificación del condado y un subconjunto de las variables de mortalidad (agrupadas por década) que ilustran el patrón de codificación del conjunto de datos. 
+En esta sección se realiza una exploración exhaustiva de la base de datos con el fin de identificar relaciones entre las variables, detectar posibles transformaciones y establecer la estructura inicial del modelo de regresión lineal múltiple.
+
+
+```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
+library(tidyr) 
+
+# Estadísticas resumidas
+desc_stats <- ohlung %>%
+  summarise(
+    across(starts_with("LM"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("LF"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("POPM"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}"),
+    across(starts_with("POPF"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}")
+  ) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Valor") %>%
+  mutate(Variable = gsub("_", " ", Variable))
+
+# Dividir la tabla en dos columnas laterales
+n <- nrow(desc_stats)
+mitad <- ceiling(n / 2)
+
+izq <- desc_stats[1:mitad, , drop = FALSE]
+der <- desc_stats[(mitad + 1):n, , drop = FALSE]
+
+# Ajustar filas para igualar altura
+if (nrow(izq) > nrow(der)) {
+  der <- rbind(der, data.frame(Variable = "", Valor = NA, stringsAsFactors = FALSE))
+}
+
+# Combinar horizontalmente con nombres únicos
+tabla_final <- cbind( izq, der)
+
+knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de casos y población",
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
+```
 
 
 ------------------------------------------------------------------------
