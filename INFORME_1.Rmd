@@ -6,11 +6,14 @@ output: pdf_document
 ---
 # Librerías
 ```{r, show = False}
+#---------------------------------- Paquetes ----------------------------------#
+#install.packages("ppcor")
 #--------------------------------- Librerías ----------------------------------#
 library(readr) #leer csv
 library(dplyr) #manejo de datos
 library(ggplot2) #gráficas
 library(knitr) #Para mostrar tablas
+library(ppcor) #correlación parcial
 ```
 
 # Data
@@ -114,11 +117,15 @@ kable(top_condados2, caption = "Top 10 condados con más casos")
 ```
 
 ```{r}
-
+numericas <- mujeres88 %>% select(-c(COUNTYID,NAME,Raza))
+cor(numericas)
+pcor(numericas)
 ```
+ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y la variable dependiente casos, tiene una correlación baja, sin embargo llama la atención el hecho de que con área maneja una correlación lineal inversa, mientras que con perímetro maneja una correlación lineal directa. 
 
 ```{r}
-
+lm <- lm(Casos~Raza+PERIMETER+Poblacion,data = mujeres88)
+summary(lm)
 ```
 
 ```{r}
