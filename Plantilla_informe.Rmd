@@ -382,7 +382,7 @@ m1 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
 ))), use = "complete.obs")
 corrplot(m1, method = "color", type = "upper", tl.col = "black", tl.srt = 60, 
          tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
-         title = "Género × Raza\n(1968-1988)", mar = c(10,0,7,0))
+         title = "Género × Raza (1968-1988)", mar = c(10,0,7,0))
 
 # Correlograma 2: Género + Geografía (1968-1988)
 m2 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
@@ -391,7 +391,7 @@ m2 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
 ))), use = "complete.obs")
 corrplot(m2, method = "color", type = "upper", tl.col = "black", tl.srt = 50, 
          tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
-         title = "Género + Geografía\n(1968-1988)", mar = c(10,0,7,0))
+         title = "Género (1968-1988)", mar = c(10,0,7,0))
 
 # Correlograma 3: Género × Raza + Geografía (1988)
 m3 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
@@ -400,7 +400,7 @@ m3 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
 ))), use = "complete.obs")
 corrplot(m3, method = "color", type = "upper", tl.col = "black", tl.srt = 50, 
          tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
-         title = "Género × Raza + Geografía\n(1988)", mar = c(10,0,7,0))
+         title = "Género × Raza (1988)", mar = c(10,0,7,0))
 
 # Título general centrado
 mtext("Matrices de correlación", outer = TRUE, cex = 1.4, font = 2, line = -1)
