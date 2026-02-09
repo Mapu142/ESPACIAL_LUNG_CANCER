@@ -32,14 +32,14 @@ geometry: margin=2.5cm
 # bibliography: BiblioConsultoria1.bib
 ---
 
-# Problema de investigación {#PrInv}
+# Intriducción {#PrInv}
 
 Describir aquí el problema desde el punto de vista del consultante.  
 
 
 ---
 
-# Objetivo general
+# Descripción de la base de datos
 
 Describir aquí de manera muy general el objetivo de la investigación sin entrar en detalles de cómo se desarrollará la investigación, como se describe en el objetivo general del problema de investigación presentado en [la sección anterior](#PrInv).
 
@@ -49,7 +49,7 @@ Describir aquí de manera muy general el objetivo de la investigación sin entra
 
 ---
 
-# Objetivos específicos
+# Análisis descriptivo
 
 - *Proponer una metodología para la evaluación del potencial de licuación.*
 - *Establecer las condiciones geológicas, geomorfológicas, hidrogeológicas, geotécnicas y sísmicas de la zona de estudio.*
@@ -58,7 +58,7 @@ Describir aquí de manera muy general el objetivo de la investigación sin entra
 
 ---
 
-# Problema(s) estadístico(s) por resolver {#ejem}
+# Modelo y verificación de supuestos {#ejem}
 
 - *Establecer un modelo multivariado a partir de una base de datos histórica de licuación a nivel mundial.*
 - *Caracterización geotécnica de materiales del subsuelo del área de estudio, a partir de información secundaria.*
@@ -69,13 +69,9 @@ Describir aquí de manera muy general el objetivo de la investigación sin entra
 ---
 
 
-# Metodología sugerida por el consultante
+# Concluciones
 Aquí solo incluir lo que sugiere el consultante si lo hizo, de lo contrario dejar en blanco
 
-# Motodolgia propuesta por el grupo
-Inclir aquí la metodología que el grupo utilizaría para resolver el problema, o para mejorar la propuesta del consultante.
-
-# Observaciones y sugerencias de mejora para el consultante
 
 # Revisión bibliográfica
 **Fuentes propuestas por los consultantes:**  
