@@ -156,7 +156,9 @@ knitr::kable(head(ohlung_subset5),
 
 # Análisis descriptivo {#AnalisisDescriptivo}
 
-En esta sección se realiza una exploración exhaustiva de la base de datos con el fin de identificar relaciones entre las variables, detectar posibles transformaciones y establecer la estructura inicial del modelo de regresión lineal múltiple.
+En esta sección se realiza una exploración de la base de datos con tal de identificar relaciones entre las variables y establecer la estructura inicial del modelo de regresión lineal múltiple.
+
+La Tabla 7 se presenta los principales estadísticos descriptivos de los casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se observa una alta variabilidad en el número de casos, con desviaciones estándar frecuentemente superiores a las medias, lo que es característico de datos de conteo. Los promedios de casos son consistentemente más altos en hombres que en mujeres y en la población blanca respecto a la negra. Además, se evidencia un incremento temporal en el número promedio de casos entre 1968 y 1988.
 
 ```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyr) 
@@ -193,6 +195,8 @@ knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de c
       longtable = TRUE) %>%
   kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
 ```
+
+Evaluando las distribuciones, se observa una población muy heterogenea entre condados, reflejando diferencias marcadas entre zonas urbanas y rurales.
 
 ```{r graficos-univariados, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyr)
