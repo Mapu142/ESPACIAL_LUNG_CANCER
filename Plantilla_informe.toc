@@ -4,4 +4,4 @@
 \contentsline {section}{\numberline {4}Verificación de supuestos}{10}{section.4}%
 \contentsline {section}{\numberline {5}Concluciones}{10}{section.5}%
 \contentsline {section}{\numberline {6}Revisión bibliográfica}{10}{section.6}%
-\contentsline {section}{\numberline {7}Bibliografía}{11}{section.7}%
+\contentsline {section}{\numberline {7}Bibliografía}{10}{section.7}%
