@@ -456,9 +456,9 @@ Por otro lado es de destacar que se observa una alta correlacion lineal en el ti
 
 ------------------------------------------------------------------------
 
-# Modelo y verificación de supuestos {#ejem}
+# Estructura del modelo {#ejem}
 
-Para cumplir con el requisito de incluir al menos una variable cualitativa, reorganizamos los datos a formato largo con base en las variables originales. Esto genera las variables cualitativas `gender` (Masculino/Femenino) y `year` (1968/1978/1988) a partir de los nombres de las columnas existentes.
+Para cumplir con el requisito de incluir al menos una variable cualitativa, se reestructuraron los datos al formato largo utilizando exclusivamente las variables originales de la base de datos (es decir se reorganizó la base de datos, sin alterar los datos originales). De esta forma se generaron las variables categóricas `gender` (Masculino/Femenino) y `year` (1968, 1978, 1988).
 
 ```{r reshape-long, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyr)
@@ -489,17 +489,32 @@ ohlung_long <- ohlung %>%
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
 
+Con esto en mente la estructura propuesta del modelo es:
+
+$$ \text{cases} = \beta_0 + \beta_1 \text{AREA} + \beta_2 \text{PERIMETER} + \beta_3 \text{gender} + \beta_4 \text{year} + \beta_5 \text{pop} + \epsilon $$
+
+donde `cases` corresponde a las variables `LMyy` o `LFyy` según el género y año, y `pop` es la población en riesgo correspondiente.
+
+Los resultados de este modelo muestran que la población (`pop`) es altamente significativa y tiene el mayor impacto, como era esperado. El género masculino se asocia con un promedio de aproximadamente 26.8 casos adicionales respecto al femenino (controlando por las demás variables). Además, se observa un aumento significativo en el número de casos en 1978 y 1988 respecto a 1968.
+
 ```{r modelo1, echo=FALSE, message=FALSE, warning=FALSE}
-modelo_1 <- lm(cases ~ AREA + PERIMETER + gender + year + pop, 
-                     data = ohlung_long)
+modelo_1 <- lm(cases ~ AREA + PERIMETER + gender + year + pop, data = ohlung_long)
 
 summary(modelo_1)
+```
 
+Las variables `AREA` y `PERIMETER` no resultan estadísticamente significativas. Un modelo reducido sin estas variables geográficas presenta un $R^2$ prácticamente idéntico (0.7605 vs 0.7613), lo que confirma su escaso aporte y se propone en cambio el siguiente modelo reducido:
+
+$$ \text{cases} = \beta_0  + \beta_1 \text{gender} + \beta_2 \text{year} + \beta_3 \text{pop} + \epsilon $$
+
+```{r modelo2, echo=FALSE, message=FALSE, warning=FALSE}
 modelo_2 <- lm(cases ~ gender + year + pop, 
                      data = ohlung_long)
 
 summary(modelo_2)
 ```
+
+# Verificación de supuestos
 
 ------------------------------------------------------------------------
 
