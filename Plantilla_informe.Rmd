@@ -180,7 +180,7 @@ knitr::kable(head(ohlung_subset5),
 
 En esta sección se realiza una exploración de la base de datos con tal de identificar relaciones entre las variables y establecer la estructura inicial del modelo de regresión lineal múltiple.
 
-La Tabla 7 se presenta los principales estadísticos descriptivos de los casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se observa una alta variabilidad en el número de casos, con desviaciones estándar frecuentemente superiores a las medias. Los promedios de casos son consistentemente más altos en hombres que en mujeres y en la población blanca respecto a la negra. Además, se evidencia un incremento temporal en el número promedio de casos entre 1968 y 1988.
+La Tabla 3 se presenta los principales estadísticos descriptivos de los casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se observa una alta variabilidad en el número de casos, con desviaciones estándar frecuentemente superiores a las medias. Los promedios de casos son consistentemente más altos en hombres que en mujeres y en la población blanca respecto a la negra. Además, se evidencia un incremento temporal en el número promedio de casos entre 1968 y 1988.
 
 ```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -456,6 +456,17 @@ par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) , oma = c(0, 0, 0, 0))
 ```
 
 Por otro lado es de destacar que se observa una alta correlacion lineal en el tiempo, luego es recomendable añadir un componente que explique esta temporalidad al modelo, o evaluar la base de datos para tratar el año como una variable descriptiva para un modelo lineal multiple.
+
+```{r boxplots, echo=FALSE, fig.height=5, fig.width=7, message=FALSE, warning=FALSE}
+boxplot(cases ~ gender, data=ohlung_long)
+boxplot(cases ~ year, data=ohlung_long)
+```
+
+Presencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
+
+```{r scarettplot, echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+plot(ohlung_long$cases)
+```
 
 ------------------------------------------------------------------------
 
