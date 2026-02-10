@@ -1,0 +1,634 @@
+---
+title: |
+  Mortalidad por cáncer de pulmón en Ohio (décadas de 1960 a 1980)
+  
+
+author: |
+  **Maria Paula Camargo Rincon**^[mcamargori@unal.edu.co]
+  **Laura Katherine Martínez Castiblanco**^[laumartinezca@unal.edu.co]
+  
+institute: |
+  Departamento de Estadística  
+  Facultad de Ciencias  
+  Universidad Nacional de Colombia  
+  Bogotá, Colombia
+  
+output:
+  # html_document:
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    latex_engine: xelatex
+fontsize: 12pt
+geometry: margin=2.5cm
+# bibliography: BiblioConsultoria1.bib
+---
+
+```{r librerias, message=FALSE, warning=FALSE, include=FALSE}
+#---------------------------------- Paquetes ----------------------------------#
+#install.packages("ppcor")
+#--------------------------------- Librerías ----------------------------------#
+library(readr) #leer csv
+library(dplyr) #manejo de datos
+library(ggplot2) #gráficas
+library(knitr) #Para mostrar tablas
+library(ppcor) #correlación parcial
+library(glmnet) #regresión ridge y lasso
+library(sf)
+library(kableExtra)
+library(tidyr) 
+library(corrplot)
+library(gridExtra)
+library(stringr)
+library(lmtest)  # Para dwtest() (Durbin-Watson test)
+```
+
+
+# Intriducción {#PrInv}
+
+Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
+
+La siguiente tabla resume las variables principales de la base de datos:
+
+
+```{r tabla1, echo=FALSE, message=FALSE, warning=FALSE}
+
+variables <- data.frame(
+  Variable = c("CountyID", "NAME", "FIPSNO", "AREA", "PERIMETER", "RECORD_ID", "COUNTYID",
+               "LGRyy", "POPGRyy", "LGyy", "POPGyy"),
+  Descripcion = c("ID secuencial del condado (orden alfabético)",
+                  "Nombre del condado",
+                  "Código FIPS del condado (numérico)",
+                  "Área del polígono (condado)",
+                  "Perímetro del polígono (condado)",
+                  "ID único del registro",
+                  "ID del condado",
+                  "Casos de cáncer de pulmón para género G (M/F) y raza R (W/B) en año yy (1968, 1978, 1988)",
+                  "Población en riesgo para género G y raza R en año yy",
+                  "Total de casos de cáncer de pulmón por género G en año yy",
+                  "Población total en riesgo por género G en año yy")
+)
+
+knitr::kable(variables)%>%
+  kable_styling(
+    font_size = 10,  # Tamaño de fuente reducido
+    latex_options = c("striped", "scale_down"),  # Escalado automático
+    full_width = FALSE
+  ) %>%
+  column_spec(2, width = "10cm") %>% # Ancho específico para descripción
+ column_spec(1, bold = TRUE)  %>% # Ancho específico para variable
+  footnote(general = "Tabla 1. Definición de variables principales en la base de datos ohlung.shp.", 
+           general_title = "")
+
+```
+
+Hay 12 variables por año (4 combinaciones de género-raza × 3 tipos: casos detallados, población detallada, totales por género)
+
+```{r tabla2, echo=FALSE, message=FALSE, warning=FALSE}
+
+ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
+  st_drop_geometry() 
+
+ohlung_subset1 <- ohlung %>%
+  dplyr::select(COUNTYID, NAME, FIPSNO, AREA, PERIMETER, LMW68, POPMW68, LMB68) %>%  head(6)
+
+# Formatear y presentar tabla
+knitr::kable(head(ohlung_subset1),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) %>%
+  footnote(general = "Tabla 2. Primeros 6 datos de la base de datos original.", 
+           general_title = "")
+
+ohlung_subset2 <- ohlung %>%
+  dplyr::select(POPMB68, LM68, POPM68, LFW68, POPFW68, LFB68, POPFB68, LF68, POPF68, LMW78) %>%  head(6)
+
+knitr::kable(head(ohlung_subset2),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset3 <- ohlung %>%
+  dplyr::select(POPMW78, LMB78, POPMB78, LM78, POPM78, LFW78, POPFW78, LFB78, POPFB78) %>%  head(6)
+
+knitr::kable(head(ohlung_subset3),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset4 <- ohlung %>%
+  dplyr::select(LF78, POPF78, LMW88, POPMW88, LMB88, POPMB88, LM88, POPM88, LFW88) %>%  head(6)
+
+knitr::kable(head(ohlung_subset4),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) # Encabezado en negrita
+
+ohlung_subset5 <- ohlung %>%
+  dplyr::select(POPFW88, LFB88, POPFB88, LF88, POPF88) %>%  head(6)
+
+knitr::kable(head(ohlung_subset5),
+             digits = 1, 
+      format = "latex",
+      booktabs = TRUE,
+      longtable = TRUE) %>%
+  kable_styling(
+    font_size = 9,  # Tamaño óptimo para múltiples columnas
+    latex_options = c("striped", "scale_down"),
+    full_width = FALSE
+  ) %>%
+  row_spec(0, bold = TRUE) 
+
+```
+
+
+------------------------------------------------------------------------
+
+# Análisis descriptivo {#AnalisisDescriptivo}
+
+En esta sección se realiza una exploración de la base de datos con tal de identificar relaciones entre las variables y establecer la estructura inicial del modelo de regresión lineal múltiple.
+
+La Tabla 3 se presenta los principales estadísticos descriptivos de los casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se observa una alta variabilidad en el número de casos, con desviaciones estándar frecuentemente superiores a las medias. Los promedios de casos son consistentemente más altos en hombres que en mujeres y en la población blanca respecto a la negra. Además, se evidencia un incremento temporal en el número promedio de casos entre 1968 y 1988.
+
+```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
+
+# Estadísticas resumidas
+desc_stats <- ohlung %>%
+  summarise(
+    across(starts_with("LM"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("LF"), list(Media = mean, SD = sd, Min = min, Max = max), .names = "{.col}_{.fn}"),
+    across(starts_with("POPM"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}"),
+    across(starts_with("POPF"), list(Media = mean, SD = sd), .names = "{.col}_{.fn}")
+  ) %>%
+  pivot_longer(everything(), names_to = "Variable", values_to = "Valor") %>%
+  mutate(Variable = gsub("_", " ", Variable))
+
+# Dividir la tabla en dos columnas laterales
+n <- nrow(desc_stats)
+mitad <- ceiling(n / 2)
+
+izq <- desc_stats[1:mitad, , drop = FALSE]
+der <- desc_stats[(mitad + 1):n, , drop = FALSE]
+
+# Ajustar filas para igualar altura
+if (nrow(izq) > nrow(der)) {
+  der <- rbind(der, data.frame(Variable = "", Valor = NA, stringsAsFactors = FALSE))
+}
+
+# Combinar horizontalmente con nombres únicos
+tabla_final <- cbind( izq, der)
+
+knitr::kable(
+  tabla_final, 
+  digits = 2, 
+  format = "latex",
+  booktabs = TRUE,
+  longtable = TRUE,
+  label = "tab:desc-stats"  # Etiqueta personalizada
+) %>%
+  kable_styling(
+    latex_options = c("striped", "scale_down"), 
+    font_size = 9,  
+    full_width = FALSE
+  ) %>%
+  footnote(general = "Tabla 3. Estadísticas descriptivas de casos y población.", 
+           general_title = "")
+```
+
+Evaluando las distribuciones, se observa una asimetrica a la derecha en cada grupo de la problación evaluada, dicionalmente se evidencia que los condados más poblados tienden a presentar menos riesgo de cáncer de pulmón, muy seguramente por la separacion de zonas urbanas y rurales.
+
+```{r graficos-univariados, echo=FALSE, message=FALSE, warning=FALSE}
+# ===== CASOS POR RAZA Y GÉNERO =====
+ohlung_cases <- ohlung %>%
+  dplyr::select(dplyr::matches("^(LMW|LMB|LFW|LFB)(68|78|88)$")) %>%
+  tidyr::pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    año = factor(paste0("19", substr(variable, 4, 5)), levels = c("1968", "1978", "1988")),
+    género = dplyr::if_else(substr(variable, 1, 2) == "LM", "Hombres", "Mujeres"),
+    raza = dplyr::case_when(
+      substr(variable, 3, 3) == "W" ~ "Blancos",
+      substr(variable, 3, 3) == "B" ~ "Negros"
+    )
+  )
+
+# ===== POBLACIÓN POR RAZA Y GÉNERO =====
+ohlung_pop <- ohlung %>%
+  dplyr::select(dplyr::matches("^POP(MW|MB|FW|FB)(68|78|88)$")) %>%
+  tidyr::pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    año = factor(paste0("19", substr(variable, 6, 7)), levels = c("1968", "1978", "1988")),
+    género = dplyr::if_else(substr(variable, 4, 4) == "M", "Hombres", "Mujeres"),
+    raza = dplyr::case_when(
+      substr(variable, 5, 5) == "W" ~ "Blancos",
+      substr(variable, 5, 5) == "B" ~ "Negros"
+    )
+  )
+
+# Paleta colorblind-friendly (Wong palette)
+razas_colores <- c("Blancos" = "#E69F00", "Negros" = "#56B4E9")
+
+# ===== GRÁFICO 1: CASOS =====
+p_casos <- ggplot(ohlung_cases, aes(x = valor, fill = raza)) +
+  geom_histogram(position = "identity", alpha = 0.75, bins = 25, 
+                 color = "white", linewidth = 0.3) +
+  facet_grid(género ~ año, switch = "y") +
+  scale_fill_manual(values = razas_colores) +
+  labs(
+    title = "Distribución de casos de cáncer \n de pulmón por raza y género",
+    x = "Número de casos", y = "Frecuencia", fill = "Raza"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text.y.left = element_text(angle = 0, face = "bold", color = "#2C3E50"),
+    strip.text.x = element_text(face = "bold", color = "#2C3E50"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines")
+  )
+
+# ===== GRÁFICO 2: POBLACIÓN =====
+p_poblacion <- ggplot(ohlung_pop, aes(x = valor, fill = raza)) +
+  geom_histogram(position = "identity", alpha = 0.75, bins = 25, 
+                 color = "white", linewidth = 0.3) +
+  facet_grid(género ~ año, switch = "y") +
+  scale_fill_manual(values = razas_colores) +
+  labs(
+    title = "Distribución de población por raza y género",
+    x = "Tamaño poblacional", y = "Frecuencia", fill = "Raza"
+  ) +
+  theme_minimal(base_size = 12) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text.y.left = element_text(angle = 0, face = "bold", color = "#2C3E50"),
+    strip.text.x = element_text(face = "bold", color = "#2C3E50"),
+    legend.position = "bottom",
+    panel.grid.minor = element_blank(),
+    panel.spacing = unit(0.8, "lines")
+  )
+
+# Mostrar ambos gráficos
+p_casos
+p_poblacion
+```
+
+```{r graficos-univariados2, echo=FALSE, fig.height=4, fig.width=10, message=FALSE, warning=FALSE}
+
+# Preparar datos para superposición (escalar para comparar formas)
+ohlung_geo_scaled <- ohlung %>%
+  dplyr::select(AREA, PERIMETER) %>%
+  tidyr::pivot_longer(c(AREA, PERIMETER), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    variable = dplyr::case_when(
+      variable == "AREA" ~ "Área (km²)",
+      variable == "PERIMETER" ~ "Perímetro (km)"
+    ),
+    valor_escalado = as.numeric(scale(valor))  # Estandarizar para superposición
+  )
+
+# Preparar datos sin escalar para contexto absoluto
+ohlung_geo_raw <- ohlung %>%
+  dplyr::select(AREA, PERIMETER) %>%
+  tidyr::pivot_longer(everything(), names_to = "variable", values_to = "valor") %>%
+  dplyr::mutate(
+    variable = dplyr::case_when(
+      variable == "AREA" ~ "Área",
+      variable == "PERIMETER" ~ "Perímetro"
+    )
+  )
+
+# Paleta suave
+colores <- c("Área (km²)" = "#009E73", "Perímetro (km)" = "#CC79A7")
+
+# ===== GRÁFICO 2: Histogramas separados (escalas reales) =====
+p2 <- ggplot(ohlung_geo_raw, aes(x = valor, fill = variable)) +
+  geom_histogram(bins = 25, alpha = 0.85, color = "white", linewidth = 0.4) +
+  facet_wrap(~ variable, scales = "free_x", ncol = 2) +
+  scale_fill_manual(values = c("Área" = "#009E73", "Perímetro" = "#CC79A7")) +
+  labs(
+    title = "Distribución absoluta: Área y Perímetro de condados",
+    x = "Valor real", y = "Frecuencia", fill = "Variable"
+  ) +
+  theme_minimal(base_size = 13) +
+  theme(
+    plot.title = element_text(face = "bold", hjust = 0.5),
+    strip.text = element_text(face = "bold", size = 12),
+    legend.position = "none",
+    panel.grid.minor = element_blank()
+  )
+
+# Mostrar ambos gráficos
+p2
+
+```
+
+Las matrices de correlación (presentadas como las combinaciones de : género y raza en los 3 años, genero femenino en los 3 año y género y raza únicamente en el último año) muestran una fuerte correlación positiva entre el número de casos y la población en riesgo correspondiente, tanto en hombres como en mujeres. Asimismo, se observa una correlación leve positiva entre los casos y las variables geográficas `AREA` y `PERIMETER`, aunque estas dos últimas están también correlacionadas entre sí.
+
+A su vez se observa que las variables geográficas aportan información limitada a la hora de explicar el comportamiento de cualquera de las variables aya sea de numero de casos o de población en riesgo de cáncer pulmonar.
+
+```{r correlaciones, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+# 
+# # Matriz de correlación con select() explícito
+# cor_matrix <- cor(
+#   ohlung %>% dplyr::select(dplyr::any_of(c("LMW68",    "POPMW68",  "LMB68", "POPMB68", "LFW68", "POPFW68", "LFB68", "POPFB68", "LMW78", "POPMW78", "LMB78", "POPMB78", "LFW78", "POPFW78", "LFB78", "POPFB78", "LMW88", "POPMW88", "LMB88", "POPMB88", "LFW88", "POPFW88", "LFB88", "POPFB88"))),
+#   use = "complete.obs"
+# )
+# 
+# corrplot(cor_matrix, method = "number", type = "upper", 
+#          title = "Género-Raza", 
+#          mar = c(1, 1, 1, 0), tl.cex = 0.45, number.cex = 0.45)
+# 
+# 
+# # Matriz de correlación con select() explícito
+# cor_matrix <- cor(
+#   ohlung %>% dplyr::select(dplyr::any_of(c("AREA", "PERIMETER", "LM68",    "POPM68", "LF68", "POPF68", "LM78", "POPM78", "LF78", "POPF78", "LM88", "POPM88", "LF88", "POPF88"))),
+#   use = "complete.obs"
+# )
+# 
+# corrplot(cor_matrix, method = "number", type = "upper", 
+#          title = "Género", 
+#          mar = c(1, 1, 1, 0), tl.cex = 0.45, number.cex = 0.45)
+# 
+# 
+# # Matriz de correlación con select() explícito
+# cor_matrix <- cor(
+#   ohlung %>% dplyr::select(dplyr::any_of(c("AREA", "PERIMETER", "LMW88", "POPMW88", "LMB88", "POPMB88", "LM88", "POPM88", "LFW88", "POPFW88", "LFB88", "POPFB88", "LF88", "POPF88"))),
+#   use = "complete.obs"
+# )
+# 
+# corrplot(cor_matrix, method = "number", type = "upper", 
+#          title = "Género-Raza (1988)", 
+#          mar = c(1, 1, 1, 0), tl.cex = 0.45, number.cex = 0.45)
+
+
+
+
+# Configurar layout 1 fila × 3 columnas
+par(mfrow = c(1, 3), mar = c(4, 2, 3, 1), oma = c(0, 0, 1, 0))
+
+# Paleta divergente profesional (azul-blanco-rojo)
+col_palette <- colorRampPalette(c("#053061", "#92C5DE", "#F7F7F7", "#FDAE61", "#67001F"))(100)
+
+# Correlograma 1: Género × Raza (1968-1988)
+m1 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
+  "LMW68","POPMW68","LMB68","POPMB68","LFW68","POPFW68","LFB68","POPFB68",
+  "LMW78","POPMW78","LMB78","POPMB78","LFW78","POPFW78","LFB78","POPFB78",
+  "LMW88","POPMW88","LMB88","POPMB88","LFW88","POPFW88","LFB88","POPFB88"
+))), use = "complete.obs")
+corrplot(m1, method = "color", type = "upper", tl.col = "black", tl.srt = 60, 
+         tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
+         title = "Género × Raza (1968-1988)", mar = c(10,0,7,0))
+
+# Correlograma 2: Género + Geografía (1968-1988)
+m2 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
+  "AREA","PERIMETER","LM68","POPM68","LF68","POPF68",
+  "LM78","POPM78","LF78","POPF78","LM88","POPM88","LF88","POPF88"
+))), use = "complete.obs")
+corrplot(m2, method = "color", type = "upper", tl.col = "black", tl.srt = 50, 
+         tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
+         title = "Género (1968-1988)", mar = c(10,0,7,0))
+
+# Correlograma 3: Género × Raza + Geografía (1988)
+m3 <- cor(ohlung %>% dplyr::select(dplyr::any_of(c(
+  "AREA","PERIMETER","LMW88","POPMW88","LMB88","POPMB88","LM88","POPM88",
+  "LFW88","POPFW88","LFB88","POPFB88","LF88","POPF88"
+))), use = "complete.obs")
+corrplot(m3, method = "color", type = "upper", tl.col = "black", tl.srt = 50, 
+         tl.cex = 0.45, col = col_palette, addgrid.col = "gray90", 
+         title = "Género × Raza (1988)", mar = c(10,0,7,0))
+
+# Título general centrado
+mtext("Matrices de correlación", outer = TRUE, cex = 1.4, font = 2, line = -1)
+
+# Restaurar parámetros gráficos originales
+par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) , oma = c(0, 0, 0, 0))
+
+# 
+# # Correlaciones parciales como tabla (sin cat)
+# pcor_results <- data.frame(
+#   Relación = c(
+#     "LM68 ~ AREA | POPM68",
+#     "LM68 ~ PERIMETER | POPM68"
+#   ),
+#   Correlación_parcial = c(
+#     round(pcor.test(ohlung$LM68, ohlung$AREA, ohlung$POPM68)$estimate, 3),
+#     round(pcor.test(ohlung$LM68, ohlung$PERIMETER, ohlung$POPM68)$estimate, 3)
+#   )
+# )
+# 
+# knitr::kable(pcor_results, 
+#              caption = "Correlaciones parciales (controlando población masculina)",
+#              format = "latex", booktabs = TRUE) %>%
+#   kableExtra::kable_styling(full_width = FALSE, font_size = 8)
+
+```
+
+Por otro lado es de destacar que se observa una alta correlacion lineal en el tiempo, luego es recomendable añadir un componente que explique esta temporalidad al modelo, o evaluar la base de datos para tratar el año como una variable descriptiva para un modelo lineal multiple.
+
+
+Para cumplir con el requisito de incluir al menos una variable cualitativa, y teniendo en cuenta las observaciones anteriores, se reestructuraron los datos al formato largo utilizando exclusivamente las variables originales de la base de datos (es decir se reorganizó la base de datos, sin alterar los datos originales). De esta forma se generaron las variables categóricas `gender` (Masculino/Femenino) y `year` (1968, 1978, 1988).
+
+```{r reshape-long, echo=FALSE, message=FALSE, warning=FALSE}
+ohlung_long <- ohlung %>%
+  dplyr::select(COUNTYID, NAME, AREA, PERIMETER,
+                LM68, LF68, POPM68, POPF68,
+                LM78, LF78, POPM78, POPF78,
+                LM88, LF88, POPM88, POPF88) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::matches("^(LM|LF|POPM|POPF)\\d{2}$"),
+    names_to = "temp",
+    values_to = "value"
+  ) %>%
+  dplyr::mutate(
+    gender = dplyr::if_else(stringr::str_detect(temp, "M"), "Male", "Female"),
+    year   = as.numeric(stringr::str_extract(temp, "\\d{2}")) + 1900,
+    type   = dplyr::if_else(stringr::str_detect(temp, "^L"), "cases", "pop")
+  ) %>%
+  dplyr::select(-temp) %>%  # Funciona con dplyr::select() explícito
+  tidyr::pivot_wider(names_from = type, values_from = value) %>%
+  dplyr::mutate(
+    gender = as.factor(gender),
+    year   = as.factor(year)
+  )
+
+knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
+```
+
+
+Considerando la nueva estructura de los datos se realiza un análisis adicional sobre la variable respuesta `cases` para evaluar su comportamiento en función del género y el año. 
+
+```{r boxplots, echo=FALSE, fig.height=4, fig.width=3.5, message=FALSE, warning=FALSE}
+boxplot(cases ~ gender, data=ohlung_long, main = "Casos por género", xlab = "Género", ylab = "Número de casos")
+boxplot(cases ~ year, data=ohlung_long, main = "Casos por año", xlab = "Año", ylab = "Número de casos")
+```
+
+Se observa una precencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
+
+```{r scatterplot, echo=FALSE, fig.height=4.5, fig.width=7, message=FALSE, warning=FALSE}
+plot(ohlung_long$cases, col = ohlung_long$gender, pch = 16, xlab = "Número de casos", ylab = "Género", main = "Dispersión de casos por género")
+```
+
+
+------------------------------------------------------------------------
+
+# Modelo y verificación de supuestos {#ejem}
+
+Considerando el aálisis anterior se plantea el siguiente modelo:
+
+$$ \text{cases} = \beta_0 + \beta_1 \text{AREA} + \beta_2 \text{PERIMETER} + \beta_3 \text{gender} + \beta_4 \text{year} + \beta_5 \text{pop} + \epsilon $$
+
+donde `cases` corresponde a las variables `LMyy` o `LFyy` según el género y año, y `pop` es la población en riesgo correspondiente.
+
+Los resultados de este modelo muestran que la población (`pop`) es altamente significativa y tiene el mayor impacto, como era esperado. El género masculino se asocia con un promedio de aproximadamente 26.8 casos adicionales respecto al femenino (controlando por las demás variables). Además, se observa un aumento significativo en el número de casos en 1978 y 1988 respecto a 1968.
+
+```{r modelo1, echo=FALSE, message=FALSE, warning=FALSE}
+modelo_1 <- lm(cases ~ AREA + PERIMETER + gender + year + pop, data = ohlung_long)
+
+summary(modelo_1)
+```
+
+Las variables `AREA` y `PERIMETER` no resultan estadísticamente significativas. Un modelo reducido sin estas variables geográficas presenta un $R^2$ prácticamente idéntico (0.7605 vs 0.7613), lo que confirma su escaso aporte y se propone en cambio el siguiente modelo reducido:
+
+$$ \text{cases} = \beta_0  + \beta_1 \text{gender} + \beta_2 \text{year} + \beta_3 \text{pop} + \epsilon $$
+
+```{r modelo2, echo=FALSE, message=FALSE, warning=FALSE}
+modelo_2 <- lm(cases ~ gender + year + pop, 
+                     data = ohlung_long)
+
+summary(modelo_2)
+```
+
+
+Además de esto, hemos realizado regresión por ridge y lasso mostradas a continuación:
+
+```{r Ridge, warning=FALSE}
+X <- as.matrix(ohlung_long %>% dplyr::select(-cases))
+y <- ohlung_long$cases
+ridge_model <- glmnet(X, y, alpha = 0)
+print(ridge_model)
+cv_ridge <- cv.glmnet(X, y, alpha = 0)
+
+best_lambda <- cv_ridge$lambda.min
+best_lambda
+
+ridge_best <- glmnet(X, y, alpha = 0, lambda = best_lambda)
+
+coef(ridge_best)
+```
+
+La regresión ridge mostro que las variables que tienen un impacto casi nulo en la variable respuesta son: 'gender' y 'COUNTYID'.
+
+```{r LASSO, show=FALSE}
+lasso_model <- glmnet(X, y, alpha = 1)
+print(lasso_model)
+```
+
+```{r LASSO2, warning=FALSE}
+cv_lasso <- cv.glmnet(X, y, alpha = 1)
+
+(best_lambda_lasso <- cv_ridge$lambda.min)
+
+lasso_best <- glmnet(X, y, alpha = 1, lambda = best_lambda_lasso)
+
+coef(lasso_best)
+```
+Por otro lado el modelo de regresión lasso indica que las variables que son influyentes son: 'year' y 'pop'. Por lo que en el modelo final se ha tomado la decisión de tener como variables explicativas: 'gender','year' y 'pop'.
+
+$$y_{i}=\beta_0+\beta_1x_{i1}+\beta_2x_{i2}+\beta_3x_{i3}+\beta_4x_{i4}$$
+donde:
+- $x_{i1}$ es la variable dummy referente al género masculino, es decir, 1 si es masculino 0 en otro caso.
+- $x_{i2}$ es la variable dummy referente al año de 1978.
+- $x_{i3}$ es la variable dummy referente al año de 1988.
+- $x_{i4}$ es la variable númerica de la población en riesgo.
+
+# Verificación de supuestos {#VerifSupuestos}
+
+Para un primer avistamiento sobre la validación del modelo veamos el comportamiento de los residuales:
+```{r supuesto1, warning=FALSE}
+plot(fitted.values(modelo_2),residuals.lm(modelo_2))
+
+```
+Podemos ver que hay un problema evidente de heteroscedastiidad que más adelante será confirmado con las respectivas pruebas.
+
+## *Independencia:*
+```{r supuesto2}
+acf(residuals.lm(modelo_2))
+
+```
+Parecen haber algunas correlaciones entre los residuales.
+
+```{r supuesto3}
+dwtest(modelo_2)
+```
+Debido a que su p valor fue mayor al nivel de significancia (0.05), nos indica que no se rechaza $H_0$ no hay autocorrelación en los residuales, aunque el ACF sugiere algunas correlaciones en ciertos rezagos, la prueba de Durbin–Watson no encuentra evidencia estadística suficiente para rechazar la hipótesis de independencia al 5%.
+## *Normalidad:*
+```{r supuesto4}
+hist(residuals.lm(modelo_2),breaks = 50)
+qqnorm(residuals.lm(modelo_2))
+qqline(residuals.lm(modelo_2))
+
+```
+Con este histograma no podemos asegurar que la distribución de los residuales sea una normal, sin embargo se ve que es una distribución simétrica, y con media en 0. Por otro lado el qqplot nos muestra que puede presentar problemas de normalidad.
+```{r supuesto5}
+shapiro.test(residuals.lm(modelo_2))
+
+```
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ la población viene de una distribución normal.
+## *Hetercedasticidad:*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+```{r supuesto6}
+bptest(modelo_2)
+
+```
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
+------------------------------------------------------------------------
+
+# Concluciones
+
+- La regre
+
+# Revisión bibliográfica
+
+**Fuentes propuestas por los consultantes:**\
+- @gareth2021introduction\
+- @pena2013analisis\
+- @schoenberg1935remarks\
+- @corradino1990proximity
+
+**Fuentes consultadas por el grupo:**\
+- @bib2\
+- @lapointe1994classification
+
+------------------------------------------------------------------------
+
+# Bibliografía
