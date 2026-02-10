@@ -158,7 +158,7 @@ knitr::kable(head(ohlung_subset5),
 
 En esta sección se realiza una exploración de la base de datos con tal de identificar relaciones entre las variables y establecer la estructura inicial del modelo de regresión lineal múltiple.
 
-La Tabla 7 se presenta los principales estadísticos descriptivos de los casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se observa una alta variabilidad en el número de casos, con desviaciones estándar frecuentemente superiores a las medias, lo que es característico de datos de conteo. Los promedios de casos son consistentemente más altos en hombres que en mujeres y en la población blanca respecto a la negra. Además, se evidencia un incremento temporal en el número promedio de casos entre 1968 y 1988.
+La Tabla 7 se presenta los principales estadísticos descriptivos de los casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se observa una alta variabilidad en el número de casos, con desviaciones estándar frecuentemente superiores a las medias. Los promedios de casos son consistentemente más altos en hombres que en mujeres y en la población blanca respecto a la negra. Además, se evidencia un incremento temporal en el número promedio de casos entre 1968 y 1988.
 
 ```{r descriptivas, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyr) 
@@ -196,7 +196,7 @@ knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de c
   kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
 ```
 
-Evaluando las distribuciones, se observa una población muy heterogenea entre condados, reflejando diferencias marcadas entre zonas urbanas y rurales.
+Evaluando las distribuciones, se observa una asimetrica a la derecha en cada grupo de la problación evaluada, dicionalmente se evidencia que los condados más poblados tienden a presentar menos riesgo de cáncer de pulmón, muy seguramente por la separacion de zonas urbanas y rurales.
 
 ```{r graficos-univariados, echo=FALSE, message=FALSE, warning=FALSE}
 library(tidyr)
@@ -241,7 +241,7 @@ p_casos <- ggplot(ohlung_cases, aes(x = valor, fill = raza)) +
   facet_grid(género ~ año, switch = "y") +
   scale_fill_manual(values = razas_colores) +
   labs(
-    title = "Distribución de casos de cáncer de pulmón por raza y género",
+    title = "Distribución de casos de cáncer \n de pulmón por raza y género",
     x = "Número de casos", y = "Frecuencia", fill = "Raza"
   ) +
   theme_minimal(base_size = 12) +
@@ -329,7 +329,7 @@ p2
 
 ```
 
-Los histogramas muestran que las tasas tienen distribución asimétrica positiva (típica de conteos).
+Las matrices de correlación (Figura X) muestran una fuerte correlación positiva entre el número de casos y la población en riesgo correspondiente, tanto en hombres como en mujeres. Asimismo, se observa una correlación moderada positiva entre los casos y las variables geográficas `AREA` y `PERIMETER`, aunque estas dos últimas están también correlacionadas entre sí.
 
 ```{r correlaciones, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
 library(dplyr)
@@ -413,23 +413,23 @@ mtext("Matrices de correlación", outer = TRUE, cex = 1.4, font = 2, line = -1)
 par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) , oma = c(0, 0, 0, 0))
 
 
-
-# Correlaciones parciales como tabla (sin cat)
-pcor_results <- data.frame(
-  Relación = c(
-    "LM68 ~ AREA | POPM68",
-    "LM68 ~ PERIMETER | POPM68"
-  ),
-  Correlación_parcial = c(
-    round(pcor.test(ohlung$LM68, ohlung$AREA, ohlung$POPM68)$estimate, 3),
-    round(pcor.test(ohlung$LM68, ohlung$PERIMETER, ohlung$POPM68)$estimate, 3)
-  )
-)
-
-knitr::kable(pcor_results, 
-             caption = "Correlaciones parciales (controlando población masculina)",
-             format = "latex", booktabs = TRUE) %>%
-  kableExtra::kable_styling(full_width = FALSE, font_size = 8)
+# 
+# # Correlaciones parciales como tabla (sin cat)
+# pcor_results <- data.frame(
+#   Relación = c(
+#     "LM68 ~ AREA | POPM68",
+#     "LM68 ~ PERIMETER | POPM68"
+#   ),
+#   Correlación_parcial = c(
+#     round(pcor.test(ohlung$LM68, ohlung$AREA, ohlung$POPM68)$estimate, 3),
+#     round(pcor.test(ohlung$LM68, ohlung$PERIMETER, ohlung$POPM68)$estimate, 3)
+#   )
+# )
+# 
+# knitr::kable(pcor_results, 
+#              caption = "Correlaciones parciales (controlando población masculina)",
+#              format = "latex", booktabs = TRUE) %>%
+#   kableExtra::kable_styling(full_width = FALSE, font_size = 8)
 
 ```
 
