@@ -493,8 +493,9 @@ boxplot(cases ~ year, data=ohlung_long, main = "Casos por año", xlab = "Año", 
 
 Se observa una precencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
 
-```{r scatterplot, echo=FALSE, fig.height=4.5, fig.width=7, message=FALSE, warning=FALSE}
-plot(ohlung_long$cases, col = ohlung_long$gender, pch = 16, xlab = "Número de casos", ylab = "Género", main = "Dispersión de casos por género")
+```{r scatterplot, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
+plot(ohlung_long$cases, col = ohlung_long$gender, pch = 16, xlab = "Número de casos", ylab = "Género", main = "Dispersión de casos por género") 
+
 ```
 
 
@@ -547,7 +548,7 @@ coef(ridge_best)
 
 La regresión ridge mostro que las variables que tienen un impacto casi nulo en la variable respuesta son: 'gender' y 'COUNTYID'.
 
-```{r LASSO, show=FALSE}
+```{r LASSO, warning=FALSE, show=FALSE}
 lasso_model <- glmnet(X, y, alpha = 1)
 print(lasso_model)
 ```
@@ -580,25 +581,25 @@ plot(fitted.values(modelo_2),residuals.lm(modelo_2))
 Podemos ver que hay un problema evidente de heteroscedastiidad que más adelante será confirmado con las respectivas pruebas.
 
 ## *Independencia:*
-```{r supuesto2}
+```{r supuesto2, warning=FALSE}
 acf(residuals.lm(modelo_2))
 
 ```
 Parecen haber algunas correlaciones entre los residuales.
 
-```{r supuesto3}
+```{r supuesto3, warning=FALSE}
 dwtest(modelo_2)
 ```
 Debido a que su p valor fue mayor al nivel de significancia (0.05), nos indica que no se rechaza $H_0$ no hay autocorrelación en los residuales, aunque el ACF sugiere algunas correlaciones en ciertos rezagos, la prueba de Durbin–Watson no encuentra evidencia estadística suficiente para rechazar la hipótesis de independencia al 5%.
 ## *Normalidad:*
-```{r supuesto4}
+```{r supuesto4, warning=FALSE}
 hist(residuals.lm(modelo_2),breaks = 50)
 qqnorm(residuals.lm(modelo_2))
 qqline(residuals.lm(modelo_2))
 
 ```
 Con este histograma no podemos asegurar que la distribución de los residuales sea una normal, sin embargo se ve que es una distribución simétrica, y con media en 0. Por otro lado el qqplot nos muestra que puede presentar problemas de normalidad.
-```{r supuesto5}
+```{r supuesto5, warning=FALSE}
 shapiro.test(residuals.lm(modelo_2))
 
 ```
@@ -606,7 +607,7 @@ Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ la pob
 ## *Hetercedasticidad:*
 
 Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
-```{r supuesto6}
+```{r supuesto6, warning=FALSE}
 bptest(modelo_2)
 
 ```
