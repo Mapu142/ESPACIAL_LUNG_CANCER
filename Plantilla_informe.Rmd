@@ -480,6 +480,45 @@ modelo_2 <- lm(cases ~ gender + year + pop,
 summary(modelo_2)
 ```
 
+En el primer modelo las variables 'AREA' y 'PERIMETER' aparecen como no significativas, lo cual es un resultado esperado y comprensible debido a su baja correlación y correlación parcial con la variable dependiente.
+
+Además de esto, hemos realizado regresión por ridge y lasso mostradas a continuación:
+
+```{r}
+X <- as.matrix(ohlung_long %>% dplyr::select(-cases))
+y <- ohlung_long$cases
+ridge_model <- glmnet(X, y, alpha = 0)
+print(ridge_model)
+cv_ridge <- cv.glmnet(X, y, alpha = 0)
+
+best_lambda <- cv_ridge$lambda.min
+best_lambda
+
+ridge_best <- glmnet(X, y, alpha = 0, lambda = best_lambda)
+
+coef(ridge_best)
+```
+
+La regresión ridge mostro que las variables que tienen un impacto casi nulo en la variable respuesta son: 'gender' y 'COUNTYID'.
+
+```{r, show=False}
+lasso_model <- glmnet(X, y, alpha = 1)
+print(lasso_model)
+```
+
+```{r}
+cv_lasso <- cv.glmnet(X, y, alpha = 1)
+
+(best_lambda_lasso <- cv_ridge$lambda.min)
+
+lasso_best <- glmnet(X, y, alpha = 1, lambda = best_lambda_lasso)
+
+coef(lasso_best)
+```
+Por otro lado el modelo de regresión lasso indica que las variables que son influyentes son: 'year' y 'pop'. Por lo que en el modelo final se ha tomado la decisión de tener como variables explicativas: 'gender','year' y 'pop'.
+
+
+
 ------------------------------------------------------------------------
 
 # Concluciones
