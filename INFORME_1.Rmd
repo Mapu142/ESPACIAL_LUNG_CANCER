@@ -14,6 +14,7 @@ library(dplyr) #manejo de datos
 library(ggplot2) #gráficas
 library(knitr) #Para mostrar tablas
 library(ppcor) #correlación parcial
+library(glmnet) #regresión ridge y lasso
 ```
 
 # Data
@@ -27,105 +28,166 @@ head(ohlung,10)
 
 ## Limpieza dela base de datos
 ```{r}
-ohlung %>% select(-c("LM68","LF68","LM78","LF78","LM88","LF88",
-                     "POPM68","POPF68","POPM78","POPF78","POPM88","POPF88"))
-tabla1 <- ohlung %>% select(COUNTYID,NAME,AREA,PERIMETER,Casos=LFW88,
-                            Poblacion=POPFW88)
-tabla2 <- ohlung %>% select(COUNTYID,NAME,AREA,PERIMETER,Casos=LFB88,
-                            Poblacion=POPFB88)
-mujeres88 <- bind_rows(tabla1,tabla2)
-mujeres88 <- mujeres88 %>% mutate(Raza=c(rep("W",88),rep("B",88))) 
-mujeres88$Raza <- as.factor(mujeres88$Raza)
-str(mujeres88)
+library(tidyr)
+library(stringr)
+
+ohlung_long <- ohlung %>%
+  dplyr::select(COUNTYID, NAME, AREA, PERIMETER,
+                LM68, LF68, POPM68, POPF68,
+                LM78, LF78, POPM78, POPF78,
+                LM88, LF88, POPM88, POPF88) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::matches("^(LM|LF|POPM|POPF)\\d{2}$"),
+    names_to = "temp",
+    values_to = "value"
+  ) %>%
+  dplyr::mutate(
+    gender = dplyr::if_else(stringr::str_detect(temp, "M"), "Male", "Female"),
+    year   = as.numeric(stringr::str_extract(temp, "\\d{2}")) + 1900,
+    type   = dplyr::if_else(stringr::str_detect(temp, "^L"), "cases", "pop")
+  ) %>%
+  dplyr::select(-temp) %>%  # Funciona con dplyr::select() explícito
+  tidyr::pivot_wider(names_from = type, values_from = value) %>%
+  dplyr::mutate(
+    gender = as.factor(gender),
+    year   = as.factor(year)
+  )
+
+knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
 
 ```{r}
-boxplot(Casos ~ Raza, data=mujeres88)
+boxplot(cases ~ gender, data=ohlung_long)
+boxplot(cases ~ year, data=ohlung_long)
 ```
-Los casos son menos dispersos en los negros que en los blancos.
+Presencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
 ```{r}
-plot(mujeres88$Casos)
+plot(ohlung_long$cases)
 ```
 
 ```{r}
-casos_condado <- mujeres88 %>%
+casos_condado <- ohlung_long %>%
+  group_by(NAME,year,gender) %>%
+  summarise(casos = sum(cases, na.rm = TRUE), .groups = "drop")
+
+top_condados <- ohlung_long %>%
   group_by(NAME) %>%
-  summarise(casos = sum(Casos, na.rm = TRUE)) %>% arrange(desc(casos))
-
-ggplot(head(casos_condado,15), aes(x = reorder(NAME, casos), y = casos)) +
-  geom_col(fill = "steelblue") +
-  coord_flip() +
-  labs(
-    title = "Casos de cáncer en mujeres (1988)",
-    x = "Condado",
-    y = "Número de casos"
-  ) +
-  theme_minimal()
-
-```
-
-```{r}
-top_condados <- mujeres88 %>%
-  group_by(NAME) %>%
-  summarise(total_casos = sum(Casos, na.rm = TRUE)) %>%
-  slice_max(total_casos, n = 10)
-
+  summarise(total_casos = sum(cases, na.rm = TRUE)) %>%
+  slice_max(total_casos, n = 15)
 
 ggplot(
-  mujeres88 %>% filter(NAME %in% top_condados$NAME),
+  casos_condado %>% filter(NAME %in% top_condados$NAME),
   aes(
-    x = reorder(NAME, ave(Casos, NAME, FUN = sum)),
-    y = Casos,
-    fill = Raza
+    x = NAME,
+    y = casos,
+    fill = factor(year)
   )
 ) +
-  geom_col() +
-  coord_flip() +
-  labs(
-    title = "Casos de cáncer en mujeres por condado y raza (1988)",
-    x = "Condado",
-    y = "Número de casos",
-    fill = "Raza"
-  ) +
-  theme_minimal()
-
-
-```
-
-```{r}
-ggplot(mujeres88 %>% filter(NAME %in% top_condados$NAME), 
-       aes(x = NAME, y = Casos, fill = Raza)) +
   geom_col(position = "dodge") +
   coord_flip() +
   labs(
-    title = "Casos de cáncer en mujeres por condado y raza (1988)",
+    title = "Casos de cáncer por condado y año",
     x = "Condado",
     y = "Número de casos",
-    fill = "Raza"
+    fill = "Año"
+  ) +
+  theme_minimal()
+```
+Podemos ver que por condado va aumentando los casos cada año evaluado.
+```{r}
+ggplot(
+  casos_condado %>% filter(NAME %in% top_condados$NAME),
+  aes(
+    x = NAME,
+    y = casos,
+    fill = gender,
+    group = interaction(year, gender)
+  )
+) +
+  geom_col(
+    position = position_dodge2(preserve = "single"),
+    width = 0.8
+  ) +
+  coord_flip() +
+  facet_grid(~ year) +
+  labs(
+    title = "Casos de cáncer por condado, año y género",
+    x = "Condado",
+    y = "Número de casos",
+    fill = "Género"
   ) +
   theme_minimal()
 
+
 ```
 
 ```{r}
-top_condados2 <-  mujeres88 %>%  
+
+
+```
+
+```{r}
+top_condados2 <-  ohlung_long %>%  
   group_by(NAME) %>%
-  summarise(total_casos = sum(Casos, na.rm = TRUE),
+  summarise(total_casos = sum(cases, na.rm = TRUE),
             area = first(AREA)) %>% 
-  slice_max(total_casos, n = 10)
-kable(top_condados2, caption = "Top 10 condados con más casos")
+  slice_max(total_casos, n = 15)
+kable(top_condados2, caption = "Top 15 condados con más casos")
 ```
 
 ```{r}
-numericas <- mujeres88 %>% select(-c(COUNTYID,NAME,Raza))
+numericas <- ohlung_long %>% dplyr::select(-c(COUNTYID,NAME,gender,year))
 cor(numericas)
 pcor(numericas)
 ```
 ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y la variable dependiente casos, tiene una correlación baja, sin embargo llama la atención el hecho de que con área maneja una correlación lineal inversa, mientras que con perímetro maneja una correlación lineal directa. 
 
 ```{r}
-lm <- lm(Casos~Raza+PERIMETER+Poblacion,data = mujeres88)
+lm <- lm(cases~gender+PERIMETER+pop+year,data = ohlung_long)
 summary(lm)
+```
+
+```{r}
+plot(lm)
+```
+Patron en los residuales, pero sobre todo problemas de homoscedasticidad evidentes.
+
+```{r}
+X <- as.matrix(ohlung_long %>% dplyr::select(-cases))
+y <- ohlung_long$cases
+ridge_model <- glmnet(X, y, alpha = 0)
+print(ridge_model)
+cv_ridge <- cv.glmnet(X, y, alpha = 0)
+
+best_lambda <- cv_ridge$lambda.min
+best_lambda
+
+ridge_best <- glmnet(X, y, alpha = 0, lambda = best_lambda)
+
+coef(ridge_best)
+```
+
+```{r, show=False}
+lasso_model <- glmnet(X, y, alpha = 1)
+print(lasso_model)
+```
+
+```{r}
+cv_lasso <- cv.glmnet(X, y, alpha = 1)
+
+(best_lambda_lasso <- cv_ridge$lambda.min)
+
+lasso_best <- glmnet(X, y, alpha = 1, lambda = best_lambda_lasso)
+
+coef(lasso_best)
+```
+
+```{r}
+
+```
+
+```{r}
+
 ```
 
 ```{r}
