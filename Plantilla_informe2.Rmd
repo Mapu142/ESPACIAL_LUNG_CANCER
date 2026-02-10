@@ -524,7 +524,7 @@ summary(modelo_2)
 
 Además de esto, hemos realizado regresión por ridge y lasso mostradas a continuación:
 
-```{r Ridge, warning=FALSE}
+```{r Ridge, message=FALSE, warning=FALSE, include=FALSE}
 X <- as.matrix(ohlung_long %>% dplyr::select(-cases))
 y <- ohlung_long$cases
 ridge_model <- glmnet(X, y, alpha = 0)
@@ -535,23 +535,29 @@ best_lambda <- cv_ridge$lambda.min
 best_lambda
 
 ridge_best <- glmnet(X, y, alpha = 0, lambda = best_lambda)
+```
 
+```{r resultado_RIDGE, echo=FALSE, message=FALSE, warning=FALSE}
 coef(ridge_best)
 ```
 
-La regresión ridge mostro que las variables que tienen un impacto casi nulo en la variable respuesta son: 'gender' y 'COUNTYID'.
+La regresión ridge mostro que las variables que tienen un impacto casi nulo en la variable respuesta son: `gender` y `NAME`.
 
-```{r LASSO, warning=FALSE, show=FALSE}
+```{r LASSO, message=FALSE, warning=FALSE, include=FALSE, show=FALSE}
 lasso_model <- glmnet(X, y, alpha = 1)
 print(lasso_model)
 ```
 
-```{r LASSO2, warning=FALSE}
+```{r LASSO2, warning=FALSE, include=FALSE}
 cv_lasso <- cv.glmnet(X, y, alpha = 1)
 
 (best_lambda_lasso <- cv_ridge$lambda.min)
 
 lasso_best <- glmnet(X, y, alpha = 1, lambda = best_lambda_lasso)
+
+```
+
+```{r resultados_LASSO, echo=FALSE, message=FALSE, warning=FALSE}
 
 coef(lasso_best)
 ```
