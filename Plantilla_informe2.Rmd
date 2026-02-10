@@ -483,15 +483,18 @@ ohlung_long <- ohlung %>%
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
 
-```{r boxplots, echo=FALSE, fig.height=4, fig.width=5, message=FALSE, warning=FALSE}
-boxplot(cases ~ gender, data=ohlung_long)
-boxplot(cases ~ year, data=ohlung_long)
+
+Considerando la nueva estructura de los datos se realiza un análisis adicional sobre la variable respuesta `cases` para evaluar su comportamiento en función del género y el año. 
+
+```{r boxplots, echo=FALSE, fig.height=4, fig.width=3.5, message=FALSE, warning=FALSE}
+boxplot(cases ~ gender, data=ohlung_long, main = "Casos por género", xlab = "Género", ylab = "Número de casos")
+boxplot(cases ~ year, data=ohlung_long, main = "Casos por año", xlab = "Año", ylab = "Número de casos")
 ```
 
-Presencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
+Se observa una precencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
 
-```{r scatterplot, echo=FALSE, fig.height=4.5, fig.width=8, message=FALSE, warning=FALSE}
-plot(ohlung_long$cases)
+```{r scatterplot, echo=FALSE, fig.height=4.5, fig.width=7, message=FALSE, warning=FALSE}
+plot(ohlung_long$cases, col = ohlung_long$gender, pch = 16, xlab = "Número de casos", ylab = "Género", main = "Dispersión de casos por género")
 ```
 
 
