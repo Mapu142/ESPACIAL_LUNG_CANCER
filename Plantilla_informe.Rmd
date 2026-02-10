@@ -53,14 +53,16 @@ variables <- data.frame(
                   "Población total en riesgo por género G en año yy")
 )
 
-knitr::kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")%>%
+knitr::kable(variables)%>%
   kable_styling(
     font_size = 10,  # Tamaño de fuente reducido
     latex_options = c("striped", "scale_down"),  # Escalado automático
     full_width = FALSE
   ) %>%
   column_spec(2, width = "10cm") %>% # Ancho específico para descripción
- column_spec(1, bold = TRUE) # Ancho específico para variable
+ column_spec(1, bold = TRUE)  %>% # Ancho específico para variable
+  footnote(general = "Tabla 1. Definición de variables principales en la base de datos ohlung.shp.", 
+           general_title = "")
 
 
 
@@ -78,7 +80,6 @@ ohlung_subset1 <- ohlung %>%
 
 # Formatear y presentar tabla
 knitr::kable(head(ohlung_subset1),
-             caption = "Primeros 6 datos",
              digits = 1, 
       format = "latex",
       booktabs = TRUE,
@@ -88,7 +89,9 @@ knitr::kable(head(ohlung_subset1),
     latex_options = c("striped", "scale_down"),
     full_width = FALSE
   ) %>%
-  row_spec(0, bold = TRUE) # Encabezado en negrita
+  row_spec(0, bold = TRUE) %>%
+  footnote(general = "Tabla 2. Primeros 6 datos de la base de datos original.", 
+           general_title = "")
 
 ohlung_subset2 <- ohlung %>%
   select(POPMB68, LM68, POPM68, LFW68, POPFW68, LFB68, POPFB68, LF68, POPF68, LMW78) %>%  head(6)
@@ -148,7 +151,12 @@ knitr::kable(head(ohlung_subset5),
     latex_options = c("striped", "scale_down"),
     full_width = FALSE
   ) %>%
-  row_spec(0, bold = TRUE) # Encabezado en negrita
+  row_spec(0, bold = TRUE) 
+
+
+
+
+
 
 ```
 
@@ -189,11 +197,21 @@ if (nrow(izq) > nrow(der)) {
 # Combinar horizontalmente con nombres únicos
 tabla_final <- cbind( izq, der)
 
-knitr::kable(tabla_final, digits = 2, caption = "Estadísticas descriptivas de casos y población",
-      format = "latex",
-      booktabs = TRUE,
-      longtable = TRUE) %>%
-  kable_styling(latex_options = c("striped", "scale_down"), font_size = 9,  full_width = FALSE)
+knitr::kable(
+  tabla_final, 
+  digits = 2, 
+  format = "latex",
+  booktabs = TRUE,
+  longtable = TRUE,
+  label = "tab:desc-stats"  # Etiqueta personalizada
+) %>%
+  kable_styling(
+    latex_options = c("striped", "scale_down"), 
+    font_size = 9,  
+    full_width = FALSE
+  ) %>%
+  footnote(general = "Tabla 3. Estadísticas descriptivas de casos y población.", 
+           general_title = "")
 ```
 
 Evaluando las distribuciones, se observa una asimetrica a la derecha en cada grupo de la problación evaluada, dicionalmente se evidencia que los condados más poblados tienden a presentar menos riesgo de cáncer de pulmón, muy seguramente por la separacion de zonas urbanas y rurales.
@@ -329,7 +347,9 @@ p2
 
 ```
 
-Las matrices de correlación (Figura X) muestran una fuerte correlación positiva entre el número de casos y la población en riesgo correspondiente, tanto en hombres como en mujeres. Asimismo, se observa una correlación moderada positiva entre los casos y las variables geográficas `AREA` y `PERIMETER`, aunque estas dos últimas están también correlacionadas entre sí.
+Las matrices de correlación (presentadas como las combinaciones de : género y raza en los 3 años, genero femenino en los 3 año y género y raza únicamente en el último año) muestran una fuerte correlación positiva entre el número de casos y la población en riesgo correspondiente, tanto en hombres como en mujeres. Asimismo, se observa una correlación leve positiva entre los casos y las variables geográficas `AREA` y `PERIMETER`, aunque estas dos últimas están también correlacionadas entre sí.
+
+A su vez se observa que las variables geográficas aportan información limitada a la hora de explicar el comportamiento de cualquera de las variables aya sea de numero de casos o de población en riesgo de cáncer pulmonar.\
 
 ```{r correlaciones, echo=FALSE, fig.height=4, fig.width=7, message=FALSE, warning=FALSE}
 library(dplyr)
@@ -412,7 +432,6 @@ mtext("Matrices de correlación", outer = TRUE, cex = 1.4, font = 2, line = -1)
 # Restaurar parámetros gráficos originales
 par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) , oma = c(0, 0, 0, 0))
 
-
 # 
 # # Correlaciones parciales como tabla (sin cat)
 # pcor_results <- data.frame(
@@ -432,6 +451,8 @@ par(mfrow = c(1, 1), mar = c(5, 4, 4, 2) , oma = c(0, 0, 0, 0))
 #   kableExtra::kable_styling(full_width = FALSE, font_size = 8)
 
 ```
+
+Por otro lado es de destacar que se observa una alta correlacion lineal en el tiempo, luego es recomendable añadir un componente que explique esta temporalidad al modelo, o evaluar la base de datos para tratar el año como una variable descriptiva para un modelo lineal multiple.
 
 ------------------------------------------------------------------------
 
