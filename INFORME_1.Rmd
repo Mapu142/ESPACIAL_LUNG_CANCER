@@ -54,6 +54,7 @@ ohlung_long <- ohlung %>%
   )
 
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
+ohlung_long$COUNTYID <- as.factor(ohlung_long$COUNTYID)
 ```
 
 ```{r}
