@@ -1,0 +1,942 @@
+% Options for packages loaded elsewhere
+\PassOptionsToPackage{unicode}{hyperref}
+\PassOptionsToPackage{hyphens}{url}
+%
+\documentclass[
+  12pt,
+]{article}
+\usepackage{amsmath,amssymb}
+\usepackage{iftex}
+\ifPDFTeX
+  \usepackage[T1]{fontenc}
+  \usepackage[utf8]{inputenc}
+  \usepackage{textcomp} % provide euro and other symbols
+\else % if luatex or xetex
+  \usepackage{unicode-math} % this also loads fontspec
+  \defaultfontfeatures{Scale=MatchLowercase}
+  \defaultfontfeatures[\rmfamily]{Ligatures=TeX,Scale=1}
+\fi
+\usepackage{lmodern}
+\ifPDFTeX\else
+  % xetex/luatex font selection
+\fi
+% Use upquote if available, for straight quotes in verbatim environments
+\IfFileExists{upquote.sty}{\usepackage{upquote}}{}
+\IfFileExists{microtype.sty}{% use microtype if available
+  \usepackage[]{microtype}
+  \UseMicrotypeSet[protrusion]{basicmath} % disable protrusion for tt fonts
+}{}
+\makeatletter
+\@ifundefined{KOMAClassName}{% if non-KOMA class
+  \IfFileExists{parskip.sty}{%
+    \usepackage{parskip}
+  }{% else
+    \setlength{\parindent}{0pt}
+    \setlength{\parskip}{6pt plus 2pt minus 1pt}}
+}{% if KOMA class
+  \KOMAoptions{parskip=half}}
+\makeatother
+\usepackage{xcolor}
+\usepackage[margin=2.5cm]{geometry}
+\usepackage{color}
+\usepackage{fancyvrb}
+\newcommand{\VerbBar}{|}
+\newcommand{\VERB}{\Verb[commandchars=\\\{\}]}
+\DefineVerbatimEnvironment{Highlighting}{Verbatim}{commandchars=\\\{\}}
+% Add ',fontsize=\small' for more characters per line
+\usepackage{framed}
+\definecolor{shadecolor}{RGB}{248,248,248}
+\newenvironment{Shaded}{\begin{snugshade}}{\end{snugshade}}
+\newcommand{\AlertTok}[1]{\textcolor[rgb]{0.94,0.16,0.16}{#1}}
+\newcommand{\AnnotationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\AttributeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\BaseNTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\BuiltInTok}[1]{#1}
+\newcommand{\CharTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\CommentTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\CommentVarTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ConstantTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\ControlFlowTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\DataTypeTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{#1}}
+\newcommand{\DecValTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\DocumentationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\ErrorTok}[1]{\textcolor[rgb]{0.64,0.00,0.00}{\textbf{#1}}}
+\newcommand{\ExtensionTok}[1]{#1}
+\newcommand{\FloatTok}[1]{\textcolor[rgb]{0.00,0.00,0.81}{#1}}
+\newcommand{\FunctionTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\ImportTok}[1]{#1}
+\newcommand{\InformationTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\newcommand{\KeywordTok}[1]{\textcolor[rgb]{0.13,0.29,0.53}{\textbf{#1}}}
+\newcommand{\NormalTok}[1]{#1}
+\newcommand{\OperatorTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\OtherTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{#1}}
+\newcommand{\PreprocessorTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textit{#1}}}
+\newcommand{\RegionMarkerTok}[1]{#1}
+\newcommand{\SpecialCharTok}[1]{\textcolor[rgb]{0.81,0.36,0.00}{\textbf{#1}}}
+\newcommand{\SpecialStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\StringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\VariableTok}[1]{\textcolor[rgb]{0.00,0.00,0.00}{#1}}
+\newcommand{\VerbatimStringTok}[1]{\textcolor[rgb]{0.31,0.60,0.02}{#1}}
+\newcommand{\WarningTok}[1]{\textcolor[rgb]{0.56,0.35,0.01}{\textbf{\textit{#1}}}}
+\usepackage{longtable,booktabs,array}
+\usepackage{calc} % for calculating minipage widths
+% Correct order of tables after \paragraph or \subparagraph
+\usepackage{etoolbox}
+\makeatletter
+\patchcmd\longtable{\par}{\if@noskipsec\mbox{}\fi\par}{}{}
+\makeatother
+% Allow footnotes in longtable head/foot
+\IfFileExists{footnotehyper.sty}{\usepackage{footnotehyper}}{\usepackage{footnote}}
+\makesavenoteenv{longtable}
+\usepackage{graphicx}
+\makeatletter
+\newsavebox\pandoc@box
+\newcommand*\pandocbounded[1]{% scales image to fit in text height/width
+  \sbox\pandoc@box{#1}%
+  \Gscale@div\@tempa{\textheight}{\dimexpr\ht\pandoc@box+\dp\pandoc@box\relax}%
+  \Gscale@div\@tempb{\linewidth}{\wd\pandoc@box}%
+  \ifdim\@tempb\p@<\@tempa\p@\let\@tempa\@tempb\fi% select the smaller of both
+  \ifdim\@tempa\p@<\p@\scalebox{\@tempa}{\usebox\pandoc@box}%
+  \else\usebox{\pandoc@box}%
+  \fi%
+}
+% Set default figure placement to htbp
+\def\fps@figure{htbp}
+\makeatother
+\setlength{\emergencystretch}{3em} % prevent overfull lines
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\setcounter{secnumdepth}{5}
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{multirow}
+\usepackage{wrapfig}
+\usepackage{float}
+\usepackage{colortbl}
+\usepackage{pdflscape}
+\usepackage{tabu}
+\usepackage{threeparttable}
+\usepackage{threeparttablex}
+\usepackage[normalem]{ulem}
+\usepackage{makecell}
+\usepackage{xcolor}
+\usepackage{bookmark}
+\IfFileExists{xurl.sty}{\usepackage{xurl}}{} % add URL line breaks if available
+\urlstyle{same}
+\hypersetup{
+  pdftitle={Mortalidad por cáncer de pulmón en Ohio (décadas de 1960 a 1980)},
+  hidelinks,
+  pdfcreator={LaTeX via pandoc}}
+
+\title{Mortalidad por cáncer de pulmón en Ohio (décadas de 1960 a 1980)}
+\author{\textbf{Maria Paula Camargo Rincon}\footnote{\href{mailto:mcamargori@unal.edu.co}{\nolinkurl{mcamargori@unal.edu.co}}}
+\textbf{Laura Katherine Martínez Castiblanco}\footnote{\href{mailto:laumartinezca@unal.edu.co}{\nolinkurl{laumartinezca@unal.edu.co}}}}
+\date{}
+
+\begin{document}
+\maketitle
+
+{
+\setcounter{tocdepth}{3}
+\tableofcontents
+}
+\section{Introducción}\label{PrInv}
+
+Este conjunto de datos se deriva de un estudio de mortalidad por cáncer
+de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado. La
+base de datos \texttt{ohiolung} contiene información para los 88
+condados del estado de Ohio, (EE. UU.). La base de datos proviene del
+GeoDa (Center for Geospatial Analysis and Computation) y presenta 42
+variables. En las estas se presentan datos referentes a la mortalidad
+por cáncer de pulmón estratificada por género (masculino/femenino) y
+raza (blanca/negra), junto variables geográficas básicas.
+
+La siguiente tabla resume las variables principales de la base de datos:
+
+\begingroup\fontsize{10}{12}\selectfont
+
+\begin{longtable}[t]{>{}l>{\raggedright\arraybackslash}p{10cm}}
+\toprule
+Variable & Descripcion\\
+\midrule
+\textbf{\cellcolor{gray!10}{CountyID}} & \cellcolor{gray!10}{ID secuencial del condado (orden alfabético)}\\
+\textbf{NAME} & Nombre del condado\\
+\textbf{\cellcolor{gray!10}{FIPSNO}} & \cellcolor{gray!10}{Código FIPS del condado (numérico)}\\
+\textbf{AREA} & Área del polígono (condado)\\
+\textbf{\cellcolor{gray!10}{PERIMETER}} & \cellcolor{gray!10}{Perímetro del polígono (condado)}\\
+\addlinespace
+\textbf{RECORD\_ID} & ID único del registro\\
+\textbf{\cellcolor{gray!10}{COUNTYID}} & \cellcolor{gray!10}{ID del condado}\\
+\textbf{LGRyy} & Casos de cáncer de pulmón para género G (M/F) y raza R (W/B) en año yy (1968, 1978, 1988)\\
+\textbf{\cellcolor{gray!10}{POPGRyy}} & \cellcolor{gray!10}{Población en riesgo para género G y raza R en año yy}\\
+\textbf{LGyy} & Total de casos de cáncer de pulmón por género G en año yy\\
+\addlinespace
+\textbf{\cellcolor{gray!10}{POPGyy}} & \cellcolor{gray!10}{Población total en riesgo por género G en año yy}\\
+\bottomrule
+\multicolumn{2}{l}{\rule{0pt}{1em}Tabla 1. Definición de variables principales en la base de datos ohlung.shp.}\\
+\end{longtable}
+\endgroup{}
+
+Hay 12 variables por año (4 combinaciones de género-raza × 3 tipos:
+casos detallados, población detallada, totales por género)
+
+\begingroup\fontsize{9}{11}\selectfont
+
+\begin{longtable}{rlrrrrrr}
+\toprule
+\textbf{COUNTYID} & \textbf{NAME} & \textbf{FIPSNO} & \textbf{AREA} & \textbf{PERIMETER} & \textbf{LMW68} & \textbf{POPMW68} & \textbf{LMB68}\\
+\midrule
+\cellcolor{gray!10}{48} & \cellcolor{gray!10}{Lucas} & \cellcolor{gray!10}{39095} & \cellcolor{gray!10}{873382000} & \cellcolor{gray!10}{164533} & \cellcolor{gray!10}{128} & \cellcolor{gray!10}{205421} & \cellcolor{gray!10}{19}\\
+26 & Fulton & 39051 & 1054690000 & 134891 & 4 & 15521 & 0\\
+\cellcolor{gray!10}{28} & \cellcolor{gray!10}{Geauga} & \cellcolor{gray!10}{39055} & \cellcolor{gray!10}{1005750000} & \cellcolor{gray!10}{146204} & \cellcolor{gray!10}{4} & \cellcolor{gray!10}{30415} & \cellcolor{gray!10}{0}\\
+86 & Williams & 39171 & 1089180000 & 136740 & 5 & 16252 & 0\\
+\cellcolor{gray!10}{18} & \cellcolor{gray!10}{Cuyahoga} & \cellcolor{gray!10}{39035} & \cellcolor{gray!10}{1242480000} & \cellcolor{gray!10}{173664} & \cellcolor{gray!10}{435} & \cellcolor{gray!10}{677185} & \cellcolor{gray!10}{87}\\
+\addlinespace
+62 & Ottawa & 39123 & 634883000 & 128356 & 10 & 17638 & 0\\
+\bottomrule
+\multicolumn{8}{l}{\rule{0pt}{1em}Tabla 2. Primeros 6 datos de la base de datos original.}\\
+\end{longtable}
+\endgroup{}
+
+\begingroup\fontsize{9}{11}\selectfont
+
+\begin{longtable}{rrrrrrrrrr}
+\toprule
+\textbf{POPMB68} & \textbf{LM68} & \textbf{POPM68} & \textbf{LFW68} & \textbf{POPFW68} & \textbf{LFB68} & \textbf{POPFB68} & \textbf{LF68} & \textbf{POPF68} & \textbf{LMW78}\\
+\midrule
+\cellcolor{gray!10}{25956} & \cellcolor{gray!10}{147} & \cellcolor{gray!10}{231377} & \cellcolor{gray!10}{27} & \cellcolor{gray!10}{220106} & \cellcolor{gray!10}{1} & \cellcolor{gray!10}{28527} & \cellcolor{gray!10}{28} & \cellcolor{gray!10}{248633} & \cellcolor{gray!10}{149}\\
+50 & 4 & 15571 & 1 & 16358 & 0 & 47 & 1 & 16405 & 10\\
+\cellcolor{gray!10}{472} & \cellcolor{gray!10}{4} & \cellcolor{gray!10}{30887} & \cellcolor{gray!10}{3} & \cellcolor{gray!10}{31131} & \cellcolor{gray!10}{0} & \cellcolor{gray!10}{496} & \cellcolor{gray!10}{3} & \cellcolor{gray!10}{31627} & \cellcolor{gray!10}{11}\\
+24 & 5 & 16276 & 0 & 17216 & 0 & 20 & 0 & 17236 & 7\\
+\cellcolor{gray!10}{157046} & \cellcolor{gray!10}{522} & \cellcolor{gray!10}{834231} & \cellcolor{gray!10}{88} & \cellcolor{gray!10}{734014} & \cellcolor{gray!10}{23} & \cellcolor{gray!10}{176614} & \cellcolor{gray!10}{111} & \cellcolor{gray!10}{910628} & \cellcolor{gray!10}{442}\\
+\addlinespace
+164 & 10 & 17802 & 0 & 18430 & 0 & 182 & 0 & 18612 & 8\\
+\bottomrule
+\end{longtable}
+\endgroup{}
+
+\begingroup\fontsize{9}{11}\selectfont
+
+\begin{longtable}{rrrrrrrrr}
+\toprule
+\textbf{POPMW78} & \textbf{LMB78} & \textbf{POPMB78} & \textbf{LM78} & \textbf{POPM78} & \textbf{LFW78} & \textbf{POPFW78} & \textbf{LFB78} & \textbf{POPFB78}\\
+\midrule
+\cellcolor{gray!10}{194976} & \cellcolor{gray!10}{34} & \cellcolor{gray!10}{30252} & \cellcolor{gray!10}{183} & \cellcolor{gray!10}{225228} & \cellcolor{gray!10}{48} & \cellcolor{gray!10}{210307} & \cellcolor{gray!10}{4} & \cellcolor{gray!10}{33790}\\
+18268 & 0 & 75 & 10 & 18343 & 3 & 19080 & 0 & 70\\
+\cellcolor{gray!10}{35839} & \cellcolor{gray!10}{1} & \cellcolor{gray!10}{604} & \cellcolor{gray!10}{12} & \cellcolor{gray!10}{36443} & \cellcolor{gray!10}{3} & \cellcolor{gray!10}{36148} & \cellcolor{gray!10}{0} & \cellcolor{gray!10}{619}\\
+17678 & 1 & 44 & 8 & 17722 & 0 & 18126 & 0 & 70\\
+\cellcolor{gray!10}{567350} & \cellcolor{gray!10}{138} & \cellcolor{gray!10}{161461} & \cellcolor{gray!10}{580} & \cellcolor{gray!10}{728811} & \cellcolor{gray!10}{165} & \cellcolor{gray!10}{623107} & \cellcolor{gray!10}{36} & \cellcolor{gray!10}{186806}\\
+\addlinespace
+19756 & 0 & 170 & 8 & 19926 & 6 & 20388 & 0 & 188\\
+\bottomrule
+\end{longtable}
+\endgroup{}
+
+\begingroup\fontsize{9}{11}\selectfont
+
+\begin{longtable}{rrrrrrrrr}
+\toprule
+\textbf{LF78} & \textbf{POPF78} & \textbf{LMW88} & \textbf{POPMW88} & \textbf{LMB88} & \textbf{POPMB88} & \textbf{LM88} & \textbf{POPM88} & \textbf{LFW88}\\
+\midrule
+\cellcolor{gray!10}{52} & \cellcolor{gray!10}{244097} & \cellcolor{gray!10}{150} & \cellcolor{gray!10}{185367} & \cellcolor{gray!10}{39} & \cellcolor{gray!10}{36104} & \cellcolor{gray!10}{189} & \cellcolor{gray!10}{221471} & \cellcolor{gray!10}{108}\\
+3 & 19150 & 8 & 18600 & 1 & 62 & 9 & 18662 & 2\\
+\cellcolor{gray!10}{3} & \cellcolor{gray!10}{36767} & \cellcolor{gray!10}{17} & \cellcolor{gray!10}{37759} & \cellcolor{gray!10}{1} & \cellcolor{gray!10}{1051} & \cellcolor{gray!10}{18} & \cellcolor{gray!10}{38810} & \cellcolor{gray!10}{12}\\
+0 & 18196 & 10 & 17822 & 0 & 61 & 10 & 17883 & 7\\
+\cellcolor{gray!10}{201} & \cellcolor{gray!10}{809913} & \cellcolor{gray!10}{453} & \cellcolor{gray!10}{499655} & \cellcolor{gray!10}{188} & \cellcolor{gray!10}{178432} & \cellcolor{gray!10}{641} & \cellcolor{gray!10}{678087} & \cellcolor{gray!10}{269}\\
+\addlinespace
+6 & 20576 & 16 & 19164 & 0 & 205 & 16 & 19369 & 9\\
+\bottomrule
+\end{longtable}
+\endgroup{}
+
+\begingroup\fontsize{9}{11}\selectfont
+
+\begin{longtable}{rrrrr}
+\toprule
+\textbf{POPFW88} & \textbf{LFB88} & \textbf{POPFB88} & \textbf{LF88} & \textbf{POPF88}\\
+\midrule
+\cellcolor{gray!10}{200458} & \cellcolor{gray!10}{8} & \cellcolor{gray!10}{41115} & \cellcolor{gray!10}{116} & \cellcolor{gray!10}{241573}\\
+19444 & 0 & 65 & 2 & 19509\\
+\cellcolor{gray!10}{37973} & \cellcolor{gray!10}{0} & \cellcolor{gray!10}{1040} & \cellcolor{gray!10}{12} & \cellcolor{gray!10}{39013}\\
+18506 & 0 & 110 & 7 & 18616\\
+\cellcolor{gray!10}{552388} & \cellcolor{gray!10}{83} & \cellcolor{gray!10}{207628} & \cellcolor{gray!10}{352} & \cellcolor{gray!10}{760016}\\
+\addlinespace
+20063 & 1 & 221 & 10 & 20284\\
+\bottomrule
+\end{longtable}
+\endgroup{}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Análisis descriptivo}\label{AnalisisDescriptivo}
+
+En esta sección se realiza una exploración de la base de datos con tal
+de identificar relaciones entre las variables y establecer la estructura
+inicial del modelo de regresión lineal múltiple.
+
+La Tabla 3 se presenta los principales estadísticos descriptivos de los
+casos de mortalidad por cáncer de pulmón y las poblaciones en riesgo. Se
+observa una alta variabilidad en el número de casos, con desviaciones
+estándar frecuentemente superiores a las medias. Los promedios de casos
+son consistentemente más altos en hombres que en mujeres y en la
+población blanca respecto a la negra. Además, se evidencia un incremento
+temporal en el número promedio de casos entre 1968 y 1988.
+
+\begingroup\fontsize{9}{11}\selectfont
+
+\begin{longtable}{lrlr}
+\toprule
+Variable & Valor & Variable & Valor\\
+\midrule
+\cellcolor{gray!10}{LMW68 Media} & \cellcolor{gray!10}{26.88} & \cellcolor{gray!10}{LFB78 Min} & \cellcolor{gray!10}{0.00}\\
+LMW68 SD & 58.57 & LFB78 Max & 36.00\\
+\cellcolor{gray!10}{LMW68 Min} & \cellcolor{gray!10}{1.00} & \cellcolor{gray!10}{LF78 Media} & \cellcolor{gray!10}{13.78}\\
+LMW68 Max & 435.00 & LF78 SD & 29.42\\
+\cellcolor{gray!10}{LMB68 Media} & \cellcolor{gray!10}{3.26} & \cellcolor{gray!10}{LF78 Min} & \cellcolor{gray!10}{0.00}\\
+\addlinespace
+LMB68 SD & 11.75 & LF78 Max & 201.00\\
+\cellcolor{gray!10}{LMB68 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{LFW88 Media} & \cellcolor{gray!10}{22.33}\\
+LMB68 Max & 87.00 & LFW88 SD & 41.47\\
+\cellcolor{gray!10}{LM68 Media} & \cellcolor{gray!10}{30.14} & \cellcolor{gray!10}{LFW88 Min} & \cellcolor{gray!10}{0.00}\\
+LM68 SD & 70.12 & LFW88 Max & 269.00\\
+\addlinespace
+\cellcolor{gray!10}{LM68 Min} & \cellcolor{gray!10}{1.00} & \cellcolor{gray!10}{LFB88 Media} & \cellcolor{gray!10}{2.60}\\
+LM68 Max & 522.00 & LFB88 SD & 10.49\\
+\cellcolor{gray!10}{LMW78 Media} & \cellcolor{gray!10}{35.82} & \cellcolor{gray!10}{LFB88 Min} & \cellcolor{gray!10}{0.00}\\
+LMW78 SD & 63.42 & LFB88 Max & 83.00\\
+\cellcolor{gray!10}{LMW78 Min} & \cellcolor{gray!10}{3.00} & \cellcolor{gray!10}{LF88 Media} & \cellcolor{gray!10}{24.93}\\
+\addlinespace
+LMW78 Max & 442.00 & LF88 SD & 51.23\\
+\cellcolor{gray!10}{LMB78 Media} & \cellcolor{gray!10}{5.01} & \cellcolor{gray!10}{LF88 Min} & \cellcolor{gray!10}{1.00}\\
+LMB78 SD & 17.79 & LF88 Max & 352.00\\
+\cellcolor{gray!10}{LMB78 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{POPMW68 Media} & \cellcolor{gray!10}{52983.82}\\
+LMB78 Max & 138.00 & POPMW68 SD & 95322.08\\
+\addlinespace
+\cellcolor{gray!10}{LM78 Media} & \cellcolor{gray!10}{40.83} & \cellcolor{gray!10}{POPMB68 Media} & \cellcolor{gray!10}{5329.95}\\
+LM78 SD & 80.55 & POPMB68 SD & 19460.53\\
+\cellcolor{gray!10}{LM78 Min} & \cellcolor{gray!10}{3.00} & \cellcolor{gray!10}{POPM68 Media} & \cellcolor{gray!10}{58313.77}\\
+LM78 Max & 580.00 & POPM68 SD & 114110.27\\
+\cellcolor{gray!10}{LMW88 Media} & \cellcolor{gray!10}{43.01} & \cellcolor{gray!10}{POPMW78 Media} & \cellcolor{gray!10}{53411.91}\\
+\addlinespace
+LMW88 SD & 68.72 & POPMW78 SD & 85016.85\\
+\cellcolor{gray!10}{LMW88 Min} & \cellcolor{gray!10}{2.00} & \cellcolor{gray!10}{POPMB78 Media} & \cellcolor{gray!10}{5915.57}\\
+LMW88 Max & 453.00 & POPMB78 SD & 20732.39\\
+\cellcolor{gray!10}{LMB88 Media} & \cellcolor{gray!10}{6.22} & \cellcolor{gray!10}{POPM78 Media} & \cellcolor{gray!10}{59327.48}\\
+LMB88 SD & 23.11 & POPM78 SD & 104851.91\\
+\addlinespace
+\cellcolor{gray!10}{LMB88 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{POPMW88 Media} & \cellcolor{gray!10}{52407.83}\\
+LMB88 Max & 188.00 & POPMW88 SD & 79338.55\\
+\cellcolor{gray!10}{LM88 Media} & \cellcolor{gray!10}{49.23} & \cellcolor{gray!10}{POPMB88 Media} & \cellcolor{gray!10}{6799.70}\\
+LM88 SD & 90.40 & POPMB88 SD & 23382.85\\
+\cellcolor{gray!10}{LM88 Min} & \cellcolor{gray!10}{2.00} & \cellcolor{gray!10}{POPM88 Media} & \cellcolor{gray!10}{59207.53}\\
+\addlinespace
+LM88 Max & 641.00 & POPM88 SD & 101568.08\\
+\cellcolor{gray!10}{LFW68 Media} & \cellcolor{gray!10}{6.12} & \cellcolor{gray!10}{POPFW68 Media} & \cellcolor{gray!10}{56094.52}\\
+LFW68 SD & 12.68 & POPFW68 SD & 102927.37\\
+\cellcolor{gray!10}{LFW68 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{POPFB68 Media} & \cellcolor{gray!10}{5862.83}\\
+LFW68 Max & 88.00 & POPFB68 SD & 21878.07\\
+\addlinespace
+\cellcolor{gray!10}{LFB68 Media} & \cellcolor{gray!10}{0.62} & \cellcolor{gray!10}{POPF68 Media} & \cellcolor{gray!10}{61957.35}\\
+LFB68 SD & 2.82 & POPF68 SD & 124072.32\\
+\cellcolor{gray!10}{LFB68 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{POPFW78 Media} & \cellcolor{gray!10}{56682.57}\\
+LFB68 Max & 23.00 & POPFW78 SD & 92507.22\\
+\cellcolor{gray!10}{LF68 Media} & \cellcolor{gray!10}{6.75} & \cellcolor{gray!10}{POPFB78 Media} & \cellcolor{gray!10}{6638.98}\\
+\addlinespace
+LF68 SD & 15.32 & POPFB78 SD & 23892.41\\
+\cellcolor{gray!10}{LF68 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{POPF78 Media} & \cellcolor{gray!10}{63321.55}\\
+LF68 Max & 111.00 & POPF78 SD & 115408.59\\
+\cellcolor{gray!10}{LFW78 Media} & \cellcolor{gray!10}{12.45} & \cellcolor{gray!10}{POPFW88 Media} & \cellcolor{gray!10}{55763.84}\\
+LFW78 SD & 24.74 & POPFW88 SD & 86678.27\\
+\addlinespace
+\cellcolor{gray!10}{LFW78 Min} & \cellcolor{gray!10}{0.00} & \cellcolor{gray!10}{POPFB88 Media} & \cellcolor{gray!10}{7650.48}\\
+LFW78 Max & 165.00 & POPFB88 SD & 27083.88\\
+\cellcolor{gray!10}{LFB78 Media} & \cellcolor{gray!10}{1.33} & \cellcolor{gray!10}{POPF88 Media} & \cellcolor{gray!10}{63414.32}\\
+LFB78 SD & 4.85 & POPF88 SD & 112456.93\\
+\bottomrule
+\multicolumn{4}{l}{\rule{0pt}{1em}Tabla 3. Estadísticas descriptivas de casos y población.}\\
+\end{longtable}
+\endgroup{}
+
+Evaluando las distribuciones, se observa una asimetrica a la derecha en
+cada grupo de la problación evaluada, dicionalmente se evidencia que los
+condados más poblados tienden a presentar menos riesgo de cáncer de
+pulmón, muy seguramente por la separacion de zonas urbanas y rurales.
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/graficos-univariados-1.pdf}}
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/graficos-univariados-2.pdf}}
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/graficos-univariados2-1.pdf}}
+
+Las matrices de correlación (presentadas como las combinaciones de :
+género y raza en los 3 años, genero femenino en los 3 año y género y
+raza únicamente en el último año) muestran una fuerte correlación
+positiva entre el número de casos y la población en riesgo
+correspondiente, tanto en hombres como en mujeres. Asimismo, se observa
+una correlación leve positiva entre los casos y las variables
+geográficas \texttt{AREA} y \texttt{PERIMETER}, aunque estas dos últimas
+están también correlacionadas entre sí.
+
+A su vez se observa que las variables geográficas aportan información
+limitada a la hora de explicar el comportamiento de cualquera de las
+variables aya sea de numero de casos o de población en riesgo de cáncer
+pulmonar.
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/correlaciones-1.pdf}}
+
+Por otro lado es de destacar que se observa una alta correlacion lineal
+en el tiempo, luego es recomendable añadir un componente que explique
+esta temporalidad al modelo, o evaluar la base de datos para tratar el
+año como una variable descriptiva para un modelo lineal multiple.
+
+Para cumplir con el requisito de incluir al menos una variable
+cualitativa, y teniendo en cuenta las observaciones anteriores, se
+reestructuraron los datos al formato largo utilizando exclusivamente las
+variables originales de la base de datos (es decir se reorganizó la base
+de datos, sin alterar los datos originales). De esta forma se generaron
+las variables categóricas \texttt{gender} (Masculino/Femenino) y
+\texttt{year} (1968, 1978, 1988).
+
+\begin{longtable}[]{@{}rlrrllrr@{}}
+\caption{Vista de los datos en formato largo}\tabularnewline
+\toprule\noalign{}
+COUNTYID & NAME & AREA & PERIMETER & gender & year & cases & pop \\
+\midrule\noalign{}
+\endfirsthead
+\toprule\noalign{}
+COUNTYID & NAME & AREA & PERIMETER & gender & year & cases & pop \\
+\midrule\noalign{}
+\endhead
+\bottomrule\noalign{}
+\endlastfoot
+48 & Lucas & 873382000 & 164533 & Male & 1968 & 147 & 231377 \\
+48 & Lucas & 873382000 & 164533 & Female & 1968 & 28 & 248633 \\
+48 & Lucas & 873382000 & 164533 & Male & 1978 & 183 & 225228 \\
+48 & Lucas & 873382000 & 164533 & Female & 1978 & 52 & 244097 \\
+48 & Lucas & 873382000 & 164533 & Male & 1988 & 189 & 221471 \\
+48 & Lucas & 873382000 & 164533 & Female & 1988 & 116 & 241573 \\
+26 & Fulton & 1054690000 & 134891 & Male & 1968 & 4 & 15571 \\
+26 & Fulton & 1054690000 & 134891 & Female & 1968 & 1 & 16405 \\
+26 & Fulton & 1054690000 & 134891 & Male & 1978 & 10 & 18343 \\
+26 & Fulton & 1054690000 & 134891 & Female & 1978 & 3 & 19150 \\
+\end{longtable}
+
+Considerando la nueva estructura de los datos se realiza un análisis
+adicional sobre la variable respuesta \texttt{cases} para evaluar su
+comportamiento en función del género y el año.
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/boxplots-1.pdf}}
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/boxplots-2.pdf}}
+
+Se observa una precencia de datos atípicos por años, mas dispersión
+conforme pasan los años, sin embargo la media parece mantenerse.Más
+dispersos en hombres que mujeres pero media constante, más datos
+atípicos por hombres que por mujeres.
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/scatterplot-1.pdf}}
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Modelo y verificación de supuestos}\label{ejem}
+
+Considerando el aálisis anterior se plantea el siguiente modelo:
+
+\[ \text{cases} = \beta_0 + \beta_1 \text{AREA} + \beta_2 \text{PERIMETER} + \beta_3 \text{gender} + \beta_4 \text{year} + \beta_5 \text{pop} + \epsilon \]
+
+donde \texttt{cases} corresponde a las variables \texttt{LMyy} o
+\texttt{LFyy} según el género y año, y \texttt{pop} es la población en
+riesgo correspondiente.
+
+Los resultados de este modelo muestran que la población (\texttt{pop})
+es altamente significativa y tiene el mayor impacto, como era esperado.
+El género masculino se asocia con un promedio de aproximadamente 26.8
+casos adicionales respecto al femenino (controlando por las demás
+variables). Además, se observa un aumento significativo en el número de
+casos en 1978 y 1988 respecto a 1968.
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = cases ~ AREA + PERIMETER + gender + year + pop, 
+##     data = ohlung_long)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -302.741   -9.193   -0.937    9.265  293.559 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(>|t|)    
+## (Intercept) -3.308e+01  1.209e+01  -2.736  0.00643 ** 
+## AREA        -9.100e-09  7.592e-09  -1.199  0.23124    
+## PERIMETER    1.312e-04  9.966e-05   1.316  0.18862    
+## genderMale   2.680e+01  2.726e+00   9.831  < 2e-16 ***
+## year1978     8.295e+00  3.338e+00   2.485  0.01326 *  
+## year1988     1.807e+01  3.338e+00   5.415 9.36e-08 ***
+## pop          4.781e-04  1.228e-05  38.928  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 31.31 on 521 degrees of freedom
+## Multiple R-squared:  0.7613, Adjusted R-squared:  0.7586 
+## F-statistic:   277 on 6 and 521 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+Las variables \texttt{AREA} y \texttt{PERIMETER} no resultan
+estadísticamente significativas. Un modelo reducido sin estas variables
+geográficas presenta un \(R^2\) prácticamente idéntico (0.7605 vs
+0.7613), lo que confirma su escaso aporte y se propone en cambio el
+siguiente modelo reducido:
+
+\[ \text{cases} = \beta_0  + \beta_1 \text{gender} + \beta_2 \text{year} + \beta_3 \text{pop} + \epsilon \]
+
+\begin{verbatim}
+## 
+## Call:
+## lm(formula = cases ~ gender + year + pop, data = ohlung_long)
+## 
+## Residuals:
+##      Min       1Q   Median       3Q      Max 
+## -301.984   -9.110   -1.014    9.029  294.680 
+## 
+## Coefficients:
+##               Estimate Std. Error t value Pr(>|t|)    
+## (Intercept) -2.380e+01  2.828e+00  -8.415 3.77e-16 ***
+## genderMale   2.680e+01  2.726e+00   9.834  < 2e-16 ***
+## year1978     8.293e+00  3.338e+00   2.485   0.0133 *  
+## year1988     1.807e+01  3.338e+00   5.415 9.36e-08 ***
+## pop          4.796e-04  1.220e-05  39.314  < 2e-16 ***
+## ---
+## Signif. codes:  0 '***' 0.001 '**' 0.01 '*' 0.05 '.' 0.1 ' ' 1
+## 
+## Residual standard error: 31.31 on 523 degrees of freedom
+## Multiple R-squared:  0.7605, Adjusted R-squared:  0.7586 
+## F-statistic: 415.1 on 4 and 523 DF,  p-value: < 2.2e-16
+\end{verbatim}
+
+Además de esto, hemos realizado regresión por ridge y lasso mostradas a
+continuación:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{X }\OtherTok{\textless{}{-}} \FunctionTok{as.matrix}\NormalTok{(ohlung\_long }\SpecialCharTok{\%\textgreater{}\%}\NormalTok{ dplyr}\SpecialCharTok{::}\FunctionTok{select}\NormalTok{(}\SpecialCharTok{{-}}\NormalTok{cases))}
+\NormalTok{y }\OtherTok{\textless{}{-}}\NormalTok{ ohlung\_long}\SpecialCharTok{$}\NormalTok{cases}
+\NormalTok{ridge\_model }\OtherTok{\textless{}{-}} \FunctionTok{glmnet}\NormalTok{(X, y, }\AttributeTok{alpha =} \DecValTok{0}\NormalTok{)}
+\FunctionTok{print}\NormalTok{(ridge\_model)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:  glmnet(x = X, y = y, alpha = 0) 
+## 
+##     Df  %Dev Lambda
+## 1    5  0.00  53370
+## 2    5  0.19  48630
+## 3    5  0.21  44310
+## 4    5  0.23  40370
+## 5    5  0.25  36790
+## 6    5  0.28  33520
+## 7    5  0.31  30540
+## 8    5  0.33  27830
+## 9    5  0.37  25350
+## 10   5  0.40  23100
+## 11   5  0.44  21050
+## 12   5  0.48  19180
+## 13   5  0.53  17480
+## 14   5  0.58  15920
+## 15   5  0.64  14510
+## 16   5  0.70  13220
+## 17   5  0.77  12050
+## 18   5  0.84  10980
+## 19   5  0.93  10000
+## 20   5  1.01   9112
+## 21   5  1.11   8303
+## 22   5  1.22   7565
+## 23   5  1.34   6893
+## 24   5  1.46   6281
+## 25   5  1.61   5723
+## 26   5  1.76   5214
+## 27   5  1.93   4751
+## 28   5  2.11   4329
+## 29   5  2.31   3944
+## 30   5  2.53   3594
+## 31   5  2.77   3275
+## 32   5  3.03   2984
+## 33   5  3.32   2719
+## 34   5  3.63   2477
+## 35   5  3.96   2257
+## 36   5  4.33   2057
+## 37   5  4.73   1874
+## 38   5  5.17   1707
+## 39   5  5.64   1556
+## 40   5  6.16   1418
+## 41   5  6.71   1292
+## 42   5  7.32   1177
+## 43   5  7.97   1072
+## 44   5  8.67    977
+## 45   5  9.43    890
+## 46   5 10.25    811
+## 47   5 11.13    739
+## 48   5 12.07    673
+## 49   5 13.08    614
+## 50   5 14.16    559
+## 51   5 15.30    509
+## 52   5 16.53    464
+## 53   5 17.82    423
+## 54   5 19.19    385
+## 55   5 20.63    351
+## 56   5 22.14    320
+## 57   5 23.73    292
+## 58   5 25.38    266
+## 59   5 27.10    242
+## 60   5 28.87    220
+## 61   5 30.70    201
+## 62   5 32.58    183
+## 63   5 34.49    167
+## 64   5 36.43    152
+## 65   5 38.39    138
+## 66   5 40.35    126
+## 67   5 42.32    115
+## 68   5 44.27    105
+## 69   5 46.19     95
+## 70   5 48.08     87
+## 71   5 49.92     79
+## 72   5 51.70     72
+## 73   5 53.41     66
+## 74   5 55.05     60
+## 75   5 56.61     55
+## 76   5 58.08     50
+## 77   5 59.46     45
+## 78   5 60.74     41
+## 79   5 61.93     38
+## 80   5 63.03     34
+## 81   5 64.03     31
+## 82   5 64.95     28
+## 83   5 65.78     26
+## 84   5 66.52     24
+## 85   5 67.19     22
+## 86   5 67.78     20
+## 87   5 68.31     18
+## 88   5 68.78     16
+## 89   5 69.18     15
+## 90   5 69.54     14
+## 91   5 69.86     12
+## 92   5 70.13     11
+## 93   5 70.36     10
+## 94   5 70.57      9
+## 95   5 70.74      8
+## 96   5 70.89      8
+## 97   5 71.02      7
+## 98   5 71.13      6
+## 99   5 71.22      6
+## 100  5 71.30      5
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{cv\_ridge }\OtherTok{\textless{}{-}} \FunctionTok{cv.glmnet}\NormalTok{(X, y, }\AttributeTok{alpha =} \DecValTok{0}\NormalTok{)}
+
+\NormalTok{best\_lambda }\OtherTok{\textless{}{-}}\NormalTok{ cv\_ridge}\SpecialCharTok{$}\NormalTok{lambda.min}
+\NormalTok{best\_lambda}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 5.336935
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{ridge\_best }\OtherTok{\textless{}{-}} \FunctionTok{glmnet}\NormalTok{(X, y, }\AttributeTok{alpha =} \DecValTok{0}\NormalTok{, }\AttributeTok{lambda =}\NormalTok{ best\_lambda)}
+
+\FunctionTok{coef}\NormalTok{(ridge\_best)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 8 x 1 sparse Matrix of class "dgCMatrix"
+##                        s0
+## (Intercept) -1.662474e+03
+## COUNTYID    -4.783533e-02
+## NAME         .           
+## AREA        -7.848866e-09
+## PERIMETER    1.378861e-04
+## gender       .           
+## year         8.359870e-01
+## pop          4.382109e-04
+\end{verbatim}
+
+La regresión ridge mostro que las variables que tienen un impacto casi
+nulo en la variable respuesta son: `gender' y `COUNTYID'.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{lasso\_model }\OtherTok{\textless{}{-}} \FunctionTok{glmnet}\NormalTok{(X, y, }\AttributeTok{alpha =} \DecValTok{1}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## Warning in storage.mode(x) <- "double": NAs introducidos por coerción
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{print}\NormalTok{(lasso\_model)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+## Call:  glmnet(x = X, y = y, alpha = 1) 
+## 
+##    Df  %Dev Lambda
+## 1   0  0.00 53.370
+## 2   1 11.93 48.630
+## 3   1 21.84 44.310
+## 4   1 30.06 40.370
+## 5   1 36.89 36.790
+## 6   1 42.55 33.520
+## 7   1 47.26 30.540
+## 8   1 51.17 27.830
+## 9   1 54.41 25.350
+## 10  1 57.10 23.100
+## 11  1 59.34 21.050
+## 12  1 61.19 19.180
+## 13  1 62.74 17.480
+## 14  1 64.01 15.920
+## 15  1 65.08 14.510
+## 16  1 65.96 13.220
+## 17  1 66.69 12.050
+## 18  1 67.30 10.980
+## 19  1 67.80 10.000
+## 20  1 68.22  9.112
+## 21  1 68.57  8.303
+## 22  1 68.86  7.565
+## 23  2 69.28  6.893
+## 24  2 69.68  6.281
+## 25  2 70.00  5.723
+## 26  2 70.28  5.214
+## 27  2 70.50  4.751
+## 28  2 70.69  4.329
+## 29  2 70.85  3.944
+## 30  2 70.98  3.594
+## 31  2 71.09  3.275
+## 32  2 71.18  2.984
+## 33  2 71.25  2.719
+## 34  2 71.31  2.477
+## 35  2 71.36  2.257
+## 36  2 71.41  2.057
+## 37  2 71.44  1.874
+## 38  2 71.47  1.707
+## 39  2 71.49  1.556
+## 40  2 71.51  1.418
+## 41  2 71.53  1.292
+## 42  2 71.55  1.177
+## 43  3 71.56  1.072
+## 44  4 71.58  0.977
+## 45  4 71.59  0.890
+## 46  4 71.60  0.811
+## 47  5 71.62  0.739
+## 48  5 71.64  0.673
+## 49  5 71.65  0.614
+## 50  5 71.66  0.559
+## 51  5 71.68  0.509
+## 52  5 71.68  0.464
+## 53  5 71.69  0.423
+## 54  5 71.70  0.385
+## 55  5 71.70  0.351
+## 56  5 71.71  0.320
+## 57  5 71.71  0.292
+## 58  5 71.71  0.266
+## 59  5 71.72  0.242
+## 60  5 71.72  0.220
+## 61  5 71.72  0.201
+## 62  5 71.72  0.183
+## 63  5 71.72  0.167
+## 64  5 71.72  0.152
+## 65  5 71.72  0.138
+## 66  5 71.72  0.126
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{cv\_lasso }\OtherTok{\textless{}{-}} \FunctionTok{cv.glmnet}\NormalTok{(X, y, }\AttributeTok{alpha =} \DecValTok{1}\NormalTok{)}
+
+\NormalTok{(best\_lambda\_lasso }\OtherTok{\textless{}{-}}\NormalTok{ cv\_ridge}\SpecialCharTok{$}\NormalTok{lambda.min)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## [1] 5.336935
+\end{verbatim}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\NormalTok{lasso\_best }\OtherTok{\textless{}{-}} \FunctionTok{glmnet}\NormalTok{(X, y, }\AttributeTok{alpha =} \DecValTok{1}\NormalTok{, }\AttributeTok{lambda =}\NormalTok{ best\_lambda\_lasso)}
+
+\FunctionTok{coef}\NormalTok{(lasso\_best)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 8 x 1 sparse Matrix of class "dgCMatrix"
+##                        s0
+## (Intercept) -4.988451e+02
+## COUNTYID     .           
+## NAME         .           
+## AREA         .           
+## PERIMETER    .           
+## gender       .           
+## year         2.529125e-01
+## pop          4.299486e-04
+\end{verbatim}
+
+Por otro lado el modelo de regresión lasso indica que las variables que
+son influyentes son: `year' y `pop'. Por lo que en el modelo final se ha
+tomado la decisión de tener como variables explicativas: `gender',`year'
+y `pop'.
+
+\[y_{i}=\beta_0+\beta_1x_{i1}+\beta_2x_{i2}+\beta_3x_{i3}+\beta_4x_{i4}\]
+donde: - \(x_{i1}\) es la variable dummy referente al género masculino,
+es decir, 1 si es masculino 0 en otro caso. - \(x_{i2}\) es la variable
+dummy referente al año de 1978. - \(x_{i3}\) es la variable dummy
+referente al año de 1988. - \(x_{i4}\) es la variable númerica de la
+población en riesgo.
+
+\section{Verificación de supuestos}\label{VerifSupuestos}
+
+Para un primer avistamiento sobre la validación del modelo veamos el
+comportamiento de los residuales:
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{plot}\NormalTok{(}\FunctionTok{fitted.values}\NormalTok{(modelo\_2),}\FunctionTok{residuals.lm}\NormalTok{(modelo\_2))}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/supuesto1-1.pdf}}
+Podemos ver que hay un problema evidente de heteroscedastiidad que más
+adelante será confirmado con las respectivas pruebas.
+
+\subsection{\texorpdfstring{\emph{Independencia:}}{Independencia:}}\label{independencia}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{acf}\NormalTok{(}\FunctionTok{residuals.lm}\NormalTok{(modelo\_2))}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/supuesto2-1.pdf}}
+Parecen haber algunas correlaciones entre los residuales.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{dwtest}\NormalTok{(modelo\_2)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Durbin-Watson test
+## 
+## data:  modelo_2
+## DW = 3.3245, p-value = 1
+## alternative hypothesis: true autocorrelation is greater than 0
+\end{verbatim}
+
+Debido a que su p valor fue mayor al nivel de significancia (0.05), nos
+indica que no se rechaza \(H_0\) no hay autocorrelación en los
+residuales, aunque el ACF sugiere algunas correlaciones en ciertos
+rezagos, la prueba de Durbin--Watson no encuentra evidencia estadística
+suficiente para rechazar la hipótesis de independencia al 5\%. \#\#
+\emph{Normalidad:}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{hist}\NormalTok{(}\FunctionTok{residuals.lm}\NormalTok{(modelo\_2),}\AttributeTok{breaks =} \DecValTok{50}\NormalTok{)}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/supuesto4-1.pdf}}
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{qqnorm}\NormalTok{(}\FunctionTok{residuals.lm}\NormalTok{(modelo\_2))}
+\FunctionTok{qqline}\NormalTok{(}\FunctionTok{residuals.lm}\NormalTok{(modelo\_2))}
+\end{Highlighting}
+\end{Shaded}
+
+\pandocbounded{\includegraphics[keepaspectratio]{Plantilla_informe2_files/figure-latex/supuesto4-2.pdf}}
+Con este histograma no podemos asegurar que la distribución de los
+residuales sea una normal, sin embargo se ve que es una distribución
+simétrica, y con media en 0. Por otro lado el qqplot nos muestra que
+puede presentar problemas de normalidad.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{shapiro.test}\NormalTok{(}\FunctionTok{residuals.lm}\NormalTok{(modelo\_2))}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  Shapiro-Wilk normality test
+## 
+## data:  residuals.lm(modelo_2)
+## W = 0.59974, p-value < 2.2e-16
+\end{verbatim}
+
+Con un p valor menor al nivel de significancia (0.05) se rechaza la
+\(H_0\) la población viene de una distribución normal.
+
+\subsection{\texorpdfstring{\emph{Hetercedasticidad:}}{Hetercedasticidad:}}\label{hetercedasticidad}
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que
+la población no sigue o proviene de una distrincuón normal, se decidió
+aplicar el test de Breusch-pagan.
+
+\begin{Shaded}
+\begin{Highlighting}[]
+\FunctionTok{bptest}\NormalTok{(modelo\_2)}
+\end{Highlighting}
+\end{Shaded}
+
+\begin{verbatim}
+## 
+##  studentized Breusch-Pagan test
+## 
+## data:  modelo_2
+## BP = 240.36, df = 4, p-value < 2.2e-16
+\end{verbatim}
+
+\subsection{\texorpdfstring{Con un p valor menor al nivel de
+significancia (0.05) se rechaza la \(H_0\) igualdad de varianzas, es
+algo que ya se podría detectar a simple vista en el gráfico de los
+residuales y los valores
+predichos.}{Con un p valor menor al nivel de significancia (0.05) se rechaza la H\_0 igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.}}\label{con-un-p-valor-menor-al-nivel-de-significancia-0.05-se-rechaza-la-h_0-igualdad-de-varianzas-es-algo-que-ya-se-podruxeda-detectar-a-simple-vista-en-el-gruxe1fico-de-los-residuales-y-los-valores-predichos.}
+
+\section{Concluciones}\label{concluciones}
+
+\begin{itemize}
+\tightlist
+\item
+  La regre
+\end{itemize}
+
+\section{Revisión bibliográfica}\label{revisiuxf3n-bibliogruxe1fica}
+
+\textbf{Fuentes propuestas por los consultantes:}\\
+- @gareth2021introduction\\
+- @pena2013analisis\\
+- @schoenberg1935remarks\\
+- @corradino1990proximity
+
+\textbf{Fuentes consultadas por el grupo:}\\
+- @bib2\\
+- @lapointe1994classification
+
+\begin{center}\rule{0.5\linewidth}{0.5pt}\end{center}
+
+\section{Bibliografía}\label{bibliografuxeda}
+
+\end{document}

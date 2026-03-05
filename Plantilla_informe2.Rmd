@@ -45,7 +45,7 @@ library(lmtest)  # Para dwtest() (Durbin-Watson test)
 ```
 
 
-# Intriducción {#PrInv}
+# Introducción {#PrInv}
 
 Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
 
@@ -570,7 +570,7 @@ donde:
 - $x_{i3}$ es la variable dummy referente al año de 1988.
 - $x_{i4}$ es la variable númerica de la población en riesgo.
 
-# Verificación de supuestos {#VerifSupuestos}
+# Verificación de supuestos 
 
 Para un primer avistamiento sobre la validación del modelo veamos el comportamiento de los residuales:
 ```{r supuesto1, warning=FALSE}
@@ -579,7 +579,10 @@ plot(fitted.values(modelo_2),residuals.lm(modelo_2))
 ```
 Podemos ver que hay un problema evidente de heteroscedastiidad que más adelante será confirmado con las respectivas pruebas.
 
+
 ## *Independencia:*
+
+
 ```{r supuesto2}
 acf(residuals.lm(modelo_2))
 
@@ -590,7 +593,11 @@ Parecen haber algunas correlaciones entre los residuales.
 dwtest(modelo_2)
 ```
 Debido a que su p valor fue mayor al nivel de significancia (0.05), nos indica que no se rechaza $H_0$ no hay autocorrelación en los residuales, aunque el ACF sugiere algunas correlaciones en ciertos rezagos, la prueba de Durbin–Watson no encuentra evidencia estadística suficiente para rechazar la hipótesis de independencia al 5%.
+
+
 ## *Normalidad:*
+
+
 ```{r supuesto4}
 hist(residuals.lm(modelo_2),breaks = 50)
 qqnorm(residuals.lm(modelo_2))
@@ -603,7 +610,10 @@ shapiro.test(residuals.lm(modelo_2))
 
 ```
 Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ la población viene de una distribución normal.
+
+
 ## *Hetercedasticidad:*
+
 
 Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
 ```{r supuesto6}
@@ -615,7 +625,11 @@ Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ iguald
 
 # Concluciones
 
-- La regre
+- La regresión lineal normal no parece la mejor opción para este caso, probablemente se acomodarían mejor los datos a un modelo de regresión lineal generalizado con distribución poisson.
+
+- Debido a la falta de normalidad y homoscedasticidad los intervalos de confianza y las pruebas de significancia pueden ser no tan precisas.
+
+-Faltó considerar la relación que hay entre condados, es decir una relación espacial.
 
 # Revisión bibliográfica
 
