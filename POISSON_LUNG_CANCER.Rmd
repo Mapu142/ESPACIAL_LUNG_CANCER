@@ -2,11 +2,11 @@
 title: "CÁNCER DE PULMÓN OHIO"
 author: "María Paula Camargo Rincón"
 date: "2026-03-02"
-output: pdf_document
+output:
 ---
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
-setwd("C:/PERSONAL_MAPU/UNIVERSIDADES/NACIONAL/ESTADÍSTICA_ESPACIAL")
+#setwd("C:/PERSONAL_MAPU/UNIVERSIDADES/NACIONAL/ESTADÍSTICA_ESPACIAL")
 library(dplyr) # para manejo de datos
 library(sf) # para leer la base de datos
 library(ggplot2) # para gráficos
