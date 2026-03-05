@@ -184,6 +184,8 @@ coef(lasso_best)
 ```
 
 ```{r}
+#install.packages("tmap")
+library(tmap)
 
 ```
 
