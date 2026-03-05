@@ -4,4 +4,195 @@ author: "María Paula Camargo Rincón; Laura Katherine Castiblanco Martínez;"
 date: "2026-02-08"
 output: pdf_document
 ---
+# Librerías
+```{r, show = False}
+#---------------------------------- Paquetes ----------------------------------#
+#install.packages("ppcor")
+#--------------------------------- Librerías ----------------------------------#
+library(readr) #leer csv
+library(dplyr) #manejo de datos
+library(ggplot2) #gráficas
+library(knitr) #Para mostrar tablas
+library(ppcor) #correlación parcial
+library(glmnet) #regresión ridge y lasso
+```
 
+# Data
+
+La base de datos cuenta con el nombre de los condados y distintos identificadores como el código FIPS del condado, con variables geográficas como el área y perímetro, y con variables sobre la salud, como el número total de casos (L) o la población en riesgo (POP), desagregadas por género (Masculino, Femenino), raza (Blanco, Negro) y año (1968, 1978 y 1988). Teniendo en cuenta la descripción anterior la varible "LMW68" sería el número de casos de cáncer de pulmón de hombres blancos en el año 1968 y la variable "POPFB88", sería la población en riesgo de mujeres negras del año 1988. Además de esto se cuenta con vairables como "LM68" o "POPF88" lo que sería el total por género, sin embargo esto más adelante será retirado debido a su alta correlación y redundancia de información. 
+```{r}
+#------------------------------------ Data ------------------------------------#
+ohlung <- read_csv("ohiolung/ohlung.csv")
+head(ohlung,10)
+```
+
+## Limpieza dela base de datos
+```{r}
+library(tidyr)
+library(stringr)
+
+ohlung_long <- ohlung %>%
+  dplyr::select(COUNTYID, NAME, AREA, PERIMETER,
+                LM68, LF68, POPM68, POPF68,
+                LM78, LF78, POPM78, POPF78,
+                LM88, LF88, POPM88, POPF88) %>%
+  tidyr::pivot_longer(
+    cols = dplyr::matches("^(LM|LF|POPM|POPF)\\d{2}$"),
+    names_to = "temp",
+    values_to = "value"
+  ) %>%
+  dplyr::mutate(
+    gender = dplyr::if_else(stringr::str_detect(temp, "M"), "Male", "Female"),
+    year   = as.numeric(stringr::str_extract(temp, "\\d{2}")) + 1900,
+    type   = dplyr::if_else(stringr::str_detect(temp, "^L"), "cases", "pop")
+  ) %>%
+  dplyr::select(-temp) %>%  # Funciona con dplyr::select() explícito
+  tidyr::pivot_wider(names_from = type, values_from = value) %>%
+  dplyr::mutate(
+    gender = as.factor(gender),
+    year   = as.factor(year)
+  )
+
+knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
+ohlung_long$COUNTYID <- as.factor(ohlung_long$COUNTYID)
+```
+
+```{r}
+boxplot(cases ~ gender, data=ohlung_long)
+boxplot(cases ~ year, data=ohlung_long)
+```
+Presencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
+```{r}
+plot(ohlung_long$cases)
+```
+
+```{r}
+casos_condado <- ohlung_long %>%
+  group_by(NAME,year,gender) %>%
+  summarise(casos = sum(cases, na.rm = TRUE), .groups = "drop")
+
+top_condados <- ohlung_long %>%
+  group_by(NAME) %>%
+  summarise(total_casos = sum(cases, na.rm = TRUE)) %>%
+  slice_max(total_casos, n = 15)
+
+ggplot(
+  casos_condado %>% filter(NAME %in% top_condados$NAME),
+  aes(
+    x = NAME,
+    y = casos,
+    fill = factor(year)
+  )
+) +
+  geom_col(position = "dodge") +
+  coord_flip() +
+  labs(
+    title = "Casos de cáncer por condado y año",
+    x = "Condado",
+    y = "Número de casos",
+    fill = "Año"
+  ) +
+  theme_minimal()
+```
+Podemos ver que por condado va aumentando los casos cada año evaluado.
+```{r}
+ggplot(
+  casos_condado %>% filter(NAME %in% top_condados$NAME),
+  aes(
+    x = NAME,
+    y = casos,
+    fill = gender,
+    group = interaction(year, gender)
+  )
+) +
+  geom_col(
+    position = position_dodge2(preserve = "single"),
+    width = 0.8
+  ) +
+  coord_flip() +
+  facet_grid(~ year) +
+  labs(
+    title = "Casos de cáncer por condado, año y género",
+    x = "Condado",
+    y = "Número de casos",
+    fill = "Género"
+  ) +
+  theme_minimal()
+
+
+```
+
+```{r}
+
+
+```
+
+```{r}
+top_condados2 <-  ohlung_long %>%  
+  group_by(NAME) %>%
+  summarise(total_casos = sum(cases, na.rm = TRUE),
+            area = first(AREA)) %>% 
+  slice_max(total_casos, n = 15)
+kable(top_condados2, caption = "Top 15 condados con más casos")
+```
+
+```{r}
+numericas <- ohlung_long %>% dplyr::select(-c(COUNTYID,NAME,gender,year))
+cor(numericas)
+pcor(numericas)
+```
+ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y la variable dependiente casos, tiene una correlación baja, sin embargo llama la atención el hecho de que con área maneja una correlación lineal inversa, mientras que con perímetro maneja una correlación lineal directa. 
+
+```{r}
+lm <- lm(cases~gender+PERIMETER+pop+year,data = ohlung_long)
+summary(lm)
+```
+
+```{r}
+plot(lm)
+```
+Patron en los residuales, pero sobre todo problemas de homoscedasticidad evidentes.
+
+```{r}
+X <- as.matrix(ohlung_long %>% dplyr::select(-cases))
+y <- ohlung_long$cases
+ridge_model <- glmnet(X, y, alpha = 0)
+print(ridge_model)
+cv_ridge <- cv.glmnet(X, y, alpha = 0)
+
+best_lambda <- cv_ridge$lambda.min
+best_lambda
+
+ridge_best <- glmnet(X, y, alpha = 0, lambda = best_lambda)
+
+coef(ridge_best)
+```
+
+```{r, show=False}
+lasso_model <- glmnet(X, y, alpha = 1)
+print(lasso_model)
+```
+
+```{r}
+cv_lasso <- cv.glmnet(X, y, alpha = 1)
+
+(best_lambda_lasso <- cv_ridge$lambda.min)
+
+lasso_best <- glmnet(X, y, alpha = 1, lambda = best_lambda_lasso)
+
+coef(lasso_best)
+```
+
+```{r}
+#install.packages("tmap")
+library(tmap)
+
+```
+
+```{r}
+
+```
+
+```{r}
+
+```

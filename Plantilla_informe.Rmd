@@ -24,6 +24,19 @@ fontsize: 12pt
 geometry: margin=2.5cm
 # bibliography: BiblioConsultoria1.bib
 ---
+# Librerías
+```{r, show = False}
+#---------------------------------- Paquetes ----------------------------------#
+#install.packages("ppcor")
+#--------------------------------- Librerías ----------------------------------#
+library(readr) #leer csv
+library(dplyr) #manejo de datos
+library(ggplot2) #gráficas
+library(knitr) #Para mostrar tablas
+library(ppcor) #correlación parcial
+library(glmnet) #regresión ridge y lasso
+library(lmtest) #Para prueba breusch pagan y durbin watson
+```
 
 ```{r librerias, message=FALSE, warning=FALSE, include=FALSE}
 #---------------------------------- Paquetes ----------------------------------#
@@ -527,14 +540,101 @@ modelo_2 <- lm(cases ~ gender + year + pop,
 summary(modelo_2)
 ```
 
+<<<<<<< HEAD
 # Verificación de supuestos {#VerifSupuestos}
 
 
+=======
+En el primer modelo las variables 'AREA' y 'PERIMETER' aparecen como no significativas, lo cual es un resultado esperado y comprensible debido a su baja correlación y correlación parcial con la variable dependiente.
+
+Además de esto, hemos realizado regresión por ridge y lasso mostradas a continuación:
+
+```{r}
+X <- as.matrix(ohlung_long %>% dplyr::select(-cases))
+y <- ohlung_long$cases
+ridge_model <- glmnet(X, y, alpha = 0)
+print(ridge_model)
+cv_ridge <- cv.glmnet(X, y, alpha = 0)
+
+best_lambda <- cv_ridge$lambda.min
+best_lambda
+
+ridge_best <- glmnet(X, y, alpha = 0, lambda = best_lambda)
+
+coef(ridge_best)
+```
+
+La regresión ridge mostro que las variables que tienen un impacto casi nulo en la variable respuesta son: 'gender' y 'COUNTYID'.
+
+```{r, show=False}
+lasso_model <- glmnet(X, y, alpha = 1)
+print(lasso_model)
+```
+
+```{r}
+cv_lasso <- cv.glmnet(X, y, alpha = 1)
+
+(best_lambda_lasso <- cv_ridge$lambda.min)
+
+lasso_best <- glmnet(X, y, alpha = 1, lambda = best_lambda_lasso)
+
+coef(lasso_best)
+```
+Por otro lado el modelo de regresión lasso indica que las variables que son influyentes son: 'year' y 'pop'. Por lo que en el modelo final se ha tomado la decisión de tener como variables explicativas: 'gender','year' y 'pop'.
+
+$$y_{i}=\beta_0+\beta_1x_{i1}+\beta_2x_{i2}+\beta_3x_{i3}+\beta_4x_{i4}$$
+donde:
+- $x_{i1}$ es la variable dummy referente al género masculino, es decir, 1 si es masculino 0 en otro caso.
+- $x_{i2}$ es la variable dummy referente al año de 1978.
+- $x_{i3}$ es la variable dummy referente al año de 1988.
+- $x_{i4}$ es la variable númerica de la población en riesgo.
+
+# Supuestos:
+Para un primer avistamiento sobre la validación del modelo veamos el comportamiento de los residuales:
+```{r}
+plot(fitted.values(modelo_2),residuals.lm(modelo_2))
+
+```
+Podemos ver que hay un problema evidente de heteroscedastiidad que más adelante será confirmado con las respectivas pruebas.
+
+## *Independencia:*
+```{r}
+acf(residuals.lm(modelo_2))
+
+```
+Parecen haber algunas correlaciones entre los residuales.
+
+```{r}
+dwtest(modelo_2)
+```
+Debido a que su p valor fue mayor al nivel de significancia (0.05), nos indica que no se rechaza $H_0$ no hay autocorrelación en los residuales, aunque el ACF sugiere algunas correlaciones en ciertos rezagos, la prueba de Durbin–Watson no encuentra evidencia estadística suficiente para rechazar la hipótesis de independencia al 5%.
+## *Normalidad:*
+```{r}
+hist(residuals.lm(modelo_2),breaks = 50)
+qqnorm(residuals.lm(modelo_2))
+qqline(residuals.lm(modelo_2))
+
+```
+Con este histograma no podemos asegurar que la distribución de los residuales sea una normal, sin embargo se ve que es una distribución simétrica, y con media en 0. Por otro lado el qqplot nos muestra que puede presentar problemas de normalidad.
+```{r}
+shapiro.test(residuals.lm(modelo_2))
+
+```
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ la población viene de una distribución normal.
+## *Hetercedasticidad:*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+```{r}
+bptest(modelo_2)
+
+```
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
+>>>>>>> f05159c9c06948b31613a5f5c0053ac73f822f05
 ------------------------------------------------------------------------
 
 # Concluciones
 
-Aquí solo incluir lo que sugiere el consultante si lo hizo, de lo contrario dejar en blanco
+- La regre
 
 # Revisión bibliográfica
 
