@@ -6,7 +6,6 @@ output: pdf_document
 ---
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
-setwd("C:/PERSONAL_MAPU/UNIVERSIDADES/NACIONAL/ESTADÍSTICA_ESPACIAL")
 library(dplyr) # para manejo de datos
 library(sf) # para leer la base de datos
 library(ggplot2) # para gráficos
@@ -17,8 +16,9 @@ library(MASS) # binomial negativa
 library(dglm) # modelos doblemente generalizados
 library(lme4) # para hacer poisson con efecto aleatorio
 library(glmmTMB) # para hacer binomial negativa con efecto aleatorio
+library(pscl) # para modelo 0 inflado
+library(performance)
 ```
-
 
 ```{r formato largo, echo=FALSE, message=FALSE, warning=FALSE}
 ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
@@ -52,6 +52,13 @@ ohlung_long <- ohlung %>%
 
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
+```{r conteos iguales a 0}
+ohlung_long %>%
+  dplyr::select(cases) %>%
+  dplyr::filter(cases == 0) %>%
+  dplyr::summarise(count = n())
+```
+Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
 ```{r}
 barplot(ohlung_long$cases)
@@ -210,4 +217,24 @@ nbea <- glmmTMB(cases ~ gender + race + year + (1 | NAME) +
 
 summary(nbea)
 plot(fitted.values(nbea),residuals(nbea))
+```
+
+```{r 0 inflado poisson}
+modelo_zip <- zeroinfl(
+  cases ~ gender + race + year + offset(log(pop)),
+  data = ohlung_long,
+  dist = "poisson"
+)
+
+summary(modelo_zip)
+check_model(modelo_zip)
+```
+
+
+```{r 0 inflado binomial negativa}
+modelo_zinb <- zeroinfl(
+  cases ~ gender + race + year + offset(log(pop)) | 1,
+  data = ohlung_long,
+  dist = "negbin"
+)
 ```
