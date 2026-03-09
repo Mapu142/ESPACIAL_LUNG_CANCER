@@ -2,7 +2,7 @@
 title: "CÁNCER DE PULMÓN OHIO"
 author: "María Paula Camargo Rincón"
 date: "2026-03-02"
-output: pdf_document
+output:
 ---
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
@@ -17,7 +17,9 @@ library(dglm) # modelos doblemente generalizados
 library(lme4) # para hacer poisson con efecto aleatorio
 library(glmmTMB) # para hacer binomial negativa con efecto aleatorio
 library(pscl) # para modelo 0 inflado
-library(performance)
+library(psych) # para pairs.panels(), parte descriptiva 
+library(performance) # verificar supuestos de modelos
+library("glmtoolbox") # envelope
 ```
 # Intriducción {#PrInv}
 
@@ -101,6 +103,7 @@ ohlung_long %>%
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
 ```{r}
+pairs.panels(ohlung_long)
 barplot(ohlung_long$cases)
 ```
 
@@ -140,10 +143,10 @@ ggplot(
   geom_col(position = "dodge") +
   coord_flip() +
   labs(
-    title = "Casos de cáncer por condado y año",
+    title = "Casos de cancer por condado y year",
     x = "Condado",
-    y = "Número de casos",
-    fill = "Año"
+    y = "Numero de casos",
+    fill = "year"
   ) +
   theme_minimal()
 ```
@@ -166,14 +169,12 @@ ggplot(
   coord_flip() +
   facet_grid(~ year) +
   labs(
-    title = "Casos de cáncer por condado, año y género",
+    title = "Casos de cancer por condado, year y genero",
     x = "Condado",
-    y = "Número de casos",
-    fill = "Género"
+    y = "Numero de casos",
+    fill = "Genero"
   ) +
   theme_minimal()
-
-
 ```
 Podemos ver más registros o casos en los hombres que en las mujeres en los distintos años y condados.
 
@@ -183,7 +184,7 @@ top_condados2 <-  ohlung_long %>%
   summarise(total_casos = sum(cases, na.rm = TRUE),
             area = first(AREA)) %>% 
   slice_max(total_casos, n = 15)
-knitr::kable(top_condados2, caption = "Top 15 condados con más casos")
+knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
 ```
 
 ```{r}
@@ -198,6 +199,8 @@ glm1 <- glm(cases~PERIMETER+year+gender+race+NAME+pop,
             data=ohlung_long,family = poisson(link = "log"))
 summary(glm1)
 plot(glm1)
+check_model(glm1)
+#envelope(glm1, rep=100)
 ```
 Perimeter no es significativa
 
@@ -207,6 +210,9 @@ glm2 <- glm(cases~gender + year + race +
             data=ohlung_long,family = poisson(link = "log"))
 summary(glm2)
 plot(glm2)
+
+check_model(glm2)
+envelope(glm2, rep=500)
 ```
 
 
@@ -216,6 +222,10 @@ bnglm <- glm.nb(formula = cases~gender + year + race +
             data=ohlung_long )
 summary(bnglm)
 plot(bnglm)
+
+
+check_model(bnglm)
+# envelope(bnglm, rep=500)
 ```
 
 
@@ -225,6 +235,9 @@ glm_qp <- glm(cases ~ gender + year + race + offset(log(pop)),
               data = ohlung_long)
 summary(glm_qp)
 plot(glm_qp)
+
+
+check_model(glm_qp)
 ```
 
 ```{r doblemente generalizado}
@@ -236,6 +249,8 @@ dglm_model <- dglm(cases ~ gender + year + race,
 
 summary(dglm_model)
 plot(dglm_model)
+
+check_model(dglm_model)
 ```
 
 ```{r efecto aleatorio}
@@ -246,6 +261,9 @@ glmer <- glmer(cases ~ gender + race + year + (1 | NAME) +
 
 summary(glmer)
 plot(glmer)
+
+
+check_model(glmer)
 ```
 
 ```{r binomial negativa efecto aleatorio}
