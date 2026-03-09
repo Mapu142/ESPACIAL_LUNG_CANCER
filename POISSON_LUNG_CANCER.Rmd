@@ -21,9 +21,9 @@ library(psych) # para pairs.panels(), parte descriptiva
 library(performance) # verificar supuestos de modelos
 library("glmtoolbox") # envelope
 ```
-# Intriducción {#PrInv}
+# Introducción {#PrInv}
 
-Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
+Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1968 y 1978 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
 
 La siguiente tabla resume las variables principales de la base de datos:
 
@@ -61,7 +61,7 @@ knitr::kable(variables, caption = "Definición de variables principales en la ba
 
 
 ```
-
+Se realizó una modificación del formato de la tabla para poder trabajar con las variables sexó (Femenino, Masculino), año(1968, 1978, 1988) y raza (Blanco, Negro)
 ```{r formato largo, echo=FALSE, message=FALSE, warning=FALSE}
 ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
   st_drop_geometry() 
@@ -103,9 +103,14 @@ ohlung_long %>%
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
 ```{r}
-pairs.panels(ohlung_long)
-barplot(ohlung_long$cases)
+numericas <- ohlung_long %>% dplyr::select(-c(COUNTYID,NAME,gender,race,year))
+pairs.panels(numericas)
 ```
+ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y las variables dependientes, casos y población, tienen una correlación baja con las demás variables.
+
+Se destaca en los gráficos de dispersión que a pesar de que la correlación alta moderada entre *Área* y *Perímetro*, las variables *Casos* y *Población* se comportan igualmente diferente en ambas variables, es decir, para *Casos* y *Población* se puede ver que hay más dispersión con la variable *Área* que con la variable *Perímetro*.
+
+El coeficiente empleado en este gráfico es el coeficiente de correlación lineal de Pearson,
 
 ```{r}
 hist(ohlung_long$cases,breaks = 50)
@@ -187,13 +192,7 @@ top_condados2 <-  ohlung_long %>%
 knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
 ```
 
-```{r}
-numericas <- ohlung_long %>% dplyr::select(-c(COUNTYID,NAME,gender,race,year))
-cor(numericas)
-pcor(numericas)
-```
-ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y la variable dependiente casos, tiene una correlación baja, sin embargo llama la atención el hecho de que con área maneja una correlación lineal inversa, mientras que con perímetro maneja una correlación lineal directa. 
-
+# Regresión poisson
 ```{r glm1}
 glm1 <- glm(cases~PERIMETER+year+gender+race+NAME+pop,
             data=ohlung_long,family = poisson(link = "log"))
