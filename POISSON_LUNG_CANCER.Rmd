@@ -6,7 +6,6 @@ output:
 ---
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
 rm(list = ls())
-#setwd("C:/PERSONAL_MAPU/UNIVERSIDADES/NACIONAL/ESTADÍSTICA_ESPACIAL")
 library(dplyr) # para manejo de datos
 library(sf) # para leer la base de datos
 library(ggplot2) # para gráficos
@@ -17,11 +16,51 @@ library(MASS) # binomial negativa
 library(dglm) # modelos doblemente generalizados
 library(lme4) # para hacer poisson con efecto aleatorio
 library(glmmTMB) # para hacer binomial negativa con efecto aleatorio
+library(pscl) # para modelo 0 inflado
 library(psych) # para pairs.panels(), parte descriptiva 
 library(performance) # verificar supuestos de modelos
 library("glmtoolbox") # envelope
 ```
+# Intriducción {#PrInv}
 
+Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1969 y 1971 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
+
+La siguiente tabla resume las variables principales de la base de datos:
+
+```{r tabla1, echo=FALSE, message=FALSE, warning=FALSE}
+library(sf)
+library(dplyr)
+library(kableExtra)
+library(knitr)
+
+variables <- data.frame(
+  Variable = c("CountyID", "NAME", "FIPSNO", "AREA", "PERIMETER", "RECORD_ID", "COUNTYID",
+               "LGRyy", "POPGRyy", "LGyy", "POPGyy"),
+  Descripcion = c("ID secuencial del condado (orden alfabético)",
+                  "Nombre del condado",
+                  "Código FIPS del condado (numérico)",
+                  "Área del polígono (condado)",
+                  "Perímetro del polígono (condado)",
+                  "ID único del registro",
+                  "ID del condado",
+                  "Casos de cáncer de pulmón para género G (M/F) y raza R (W/B) en año yy (1968, 1978, 1988)",
+                  "Población en riesgo para género G y raza R en año yy",
+                  "Total de casos de cáncer de pulmón por género G en año yy",
+                  "Población total en riesgo por género G en año yy")
+)
+
+knitr::kable(variables, caption = "Definición de variables principales en la base de datos ohlung.shp")%>%
+  kable_styling(
+    font_size = 10,  # Tamaño de fuente reducido
+    latex_options = c("striped", "scale_down"),  # Escalado automático
+    full_width = FALSE
+  ) %>%
+  column_spec(2, width = "10cm") %>% # Ancho específico para descripción
+ column_spec(1, bold = TRUE) # Ancho específico para variable
+
+
+
+```
 
 ```{r formato largo, echo=FALSE, message=FALSE, warning=FALSE}
 ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
@@ -55,6 +94,13 @@ ohlung_long <- ohlung %>%
 
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
+```{r conteos iguales a 0}
+ohlung_long %>%
+  dplyr::select(cases) %>%
+  dplyr::filter(cases == 0) %>%
+  dplyr::summarise(count = n())
+```
+Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
 ```{r}
 pairs.panels(ohlung_long)
@@ -158,7 +204,7 @@ check_model(glm1)
 ```
 Perimeter no es significativa
 
-```{r glm1}
+```{r glm2}
 glm2 <- glm(cases~gender + year + race +
                offset(log(pop)),
             data=ohlung_long,family = poisson(link = "log"))
@@ -229,4 +275,27 @@ nbea <- glmmTMB(cases ~ gender + race + year + (1 | NAME) +
 
 summary(nbea)
 plot(fitted.values(nbea),residuals(nbea))
+```
+
+```{r 0 inflado poisson}
+modelo_zip <- zeroinfl(
+  cases ~ gender + race + year + offset(log(pop)),
+  data = ohlung_long,
+  dist = "poisson"
+)
+
+summary(modelo_zip)
+plot(predict(modelo_zip),residuals(modelo_zip))
+```
+
+
+```{r 0 inflado binomial negativa}
+modelo_zinb <- zeroinfl(
+  cases ~ gender + race + year + offset(log(pop)) | 1,
+  data = ohlung_long,
+  dist = "negbin"
+)
+
+summary(modelo_zinb)
+plot(predict(modelo_zinb),residuals(modelo_zinb))
 ```
