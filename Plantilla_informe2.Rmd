@@ -700,6 +700,153 @@ donde:
 -   $x_{i3}$ es la variable dummy referente al año de 1988.
 -   $x_{i4}$ es la variable númerica de la población en riesgo.
 
+
+## Regresión poisson
+
+### modelo 1
+
+```{r glm1, fig.height=4, fig.width=7}
+glm1 <- glm(cases~PERIMETER+year+gender+race+NAME+pop,
+            data=ohlung_long,family = poisson(link = "log"))
+summary(glm1)
+plot(glm1)
+```
+
+```{r glm1 check, fig.height=10, fig.width=7}
+check_model(glm1)
+#envelope(glm1, rep=100)
+```
+Perimeter no es significativa
+
+
+### modelo 2
+
+```{r glm2, fig.height=4, fig.width=7}
+glm2 <- glm(cases~gender + year + race +
+               offset(log(pop)),
+            data=ohlung_long,family = poisson(link = "log"))
+summary(glm2)
+plot(glm2)
+```
+
+```{r glm2 check, fig.height=10, fig.width=7}
+check_model(glm2)
+#envelope(glm2, rep=500)
+```
+
+## Binomial negati
+
+```{r binomial negativa, fig.height=4, fig.width=7}
+bnglm <- glm.nb(formula = cases~gender + year + race +
+               offset(log(pop)),
+            data=ohlung_long )
+summary(bnglm)
+plot(bnglm)
+```
+
+```{r binomial negativa check, fig.height=10, fig.width=7}
+check_model(bnglm)
+# envelope(bnglm, rep=500)
+```
+
+## Quasi poisson
+
+
+```{r quasi poisson, fig.height=4, fig.width=7}
+glm_qp <- glm(cases ~ gender + year + race + offset(log(pop)),
+              family = quasipoisson(link = "log"),
+              data = ohlung_long)
+summary(glm_qp)
+plot(glm_qp)
+```
+
+```{r quasi poisson check, fig.height=10, fig.width=7}
+check_model(glm_qp)
+```
+
+## Doblemente generalizado
+
+```{r doblemente generalizado, fig.height=4, fig.width=7}
+
+dglm_model <- dglm(cases ~ gender + year + race,
+                   offset = log(pop),
+                   family = poisson,
+                   data = ohlung_long)
+
+summary(dglm_model)
+plot(dglm_model)
+```
+
+```{r doblemente generalizado check, fig.height=10, fig.width=7}
+check_model(dglm_model)
+```
+
+## Efecto aleatorio 
+
+```{r efecto aleatorio, fig.height=4, fig.width=7}
+# Modelo poisson con efecto aleatorio por condado
+glmer <- glmer(cases ~ gender + race + year + (1 | NAME) + 
+                        offset(log(pop)),
+                      family = poisson(link = "log"),
+                      data = ohlung_long)
+
+summary(glmer)
+plot(glmer)
+```
+
+
+```{r efecto aleatorio check, fig.height=10, fig.width=7}
+check_model(glmer)
+```
+
+## Binomial negativa con efecto aleatorio
+
+```{r binomial negativa efecto aleatorio, fig.height=4, fig.width=7}
+# Modelo con binomial negativa + efecto aleatorio por condado
+nbea <- glmmTMB(cases ~ gender + race + year + (1 | NAME) + 
+                       offset(log(pop)),
+                     family = nbinom2,          # ← aquí está el cambio clave
+                     data = ohlung_long)
+
+summary(nbea)
+plot(fitted.values(nbea),residuals(nbea))
+```
+
+
+```{r binomial negativa efecto aleatorio check, fig.height=10, fig.width=7}
+check_model(nbea)
+```
+
+## Cero inflado
+
+### Modelo 0 inflado Poisson
+
+```{r 0 inflado poisson, fig.height=4, fig.width=7}
+modelo_zip <- zeroinfl(
+  cases ~ gender + race + year + offset(log(pop)),
+  data = ohlung_long,
+  dist = "poisson"
+)
+
+summary(modelo_zip)
+plot(predict(modelo_zip),residuals(modelo_zip))
+```
+
+
+### Modelo 0 inflado Binomial negativa
+
+```{r 0 inflado binomial negativa, fig.height=4, fig.width=7}
+modelo_zinb <- zeroinfl(
+  cases ~ gender + race + year + offset(log(pop)) | 1,
+  data = ohlung_long,
+  dist = "negbin"
+)
+
+summary(modelo_zinb)
+
+plot(predict(modelo_zinb),residuals(modelo_zinb))
+```
+
 ------------------------------------------------------------------------
 
 # Verificación de supuestos {#VerifSupuestos}
