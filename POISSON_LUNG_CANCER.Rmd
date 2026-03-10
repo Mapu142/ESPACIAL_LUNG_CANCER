@@ -94,7 +94,7 @@ ohlung_long <- ohlung %>%
 
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
-```{r conteos iguales a 0}
+```{r conteos iguales a 0, echo=FALSE}
 ohlung_long %>%
   dplyr::select(cases) %>%
   dplyr::filter(cases == 0) %>%
@@ -102,7 +102,7 @@ ohlung_long %>%
 ```
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
-```{r}
+```{r matriz dispersion, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
 numericas <- ohlung_long %>% dplyr::select(-c(COUNTYID,NAME,gender,race,year))
 pairs.panels(numericas)
 ```
@@ -112,14 +112,23 @@ Se destaca en los gráficos de dispersión que a pesar de que la correlación al
 
 El coeficiente empleado en este gráfico es el coeficiente de correlación lineal de Pearson,
 
-```{r}
-hist(ohlung_long$cases,breaks = 50)
-```
 
-```{r}
-boxplot(cases ~ gender, data=ohlung_long)
-boxplot(cases ~ race, data=ohlung_long)
-boxplot(cases ~ year, data=ohlung_long)
+```{r descriptiva categoricas, echo=FALSE, fig.height=7, fig.width=10}
+boxplot(cases/pop ~ gender, data=ohlung_long)
+boxplot(cases/pop ~ race, data=ohlung_long)
+boxplot(cases/pop ~ year, data=ohlung_long)
+
+tabla_conteos <- dplyr::bind_rows(ohlung_long %>% 
+             dplyr::group_by(categoria=gender) %>% 
+             dplyr::summarise(conteo=sum(cases/pop)),
+           ohlung_long %>% 
+             dplyr::group_by(categoria=race) %>% 
+             dplyr::summarise(conteo=sum(cases/pop)),
+           ohlung_long %>% 
+             dplyr::group_by(categoria=year) %>% 
+             dplyr::summarise(conteo=sum(cases/pop)))
+knitr::kable(tabla_conteos,
+             caption = "Tasas de incidencia por variable categórica")
 ```
 Presencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
 
