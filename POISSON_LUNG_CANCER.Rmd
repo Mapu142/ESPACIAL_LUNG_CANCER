@@ -20,6 +20,7 @@ library(pscl) # para modelo 0 inflado
 library(psych) # para pairs.panels(), parte descriptiva 
 library(performance) # verificar supuestos de modelos
 library(glmtoolbox) # envelope
+library(lmtest) #Para prueba breusch pagan y durbin watson
 ```
 # Introducción {#PrInv}
 
@@ -202,53 +203,54 @@ knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
 ```
 
 # Regresión poisson
-```{r glm1}
-glm1 <- glm(cases~PERIMETER+year+gender+race+NAME+pop,
+
+## glm1
+```{r glm1, echo=FALSE, fig.height=10, fig.width=10, warning=FALSE}
+glm1 <- glm(cases~PERIMETER+year+gender+race+NAME+offset(log(pop)),
             data=ohlung_long,family = poisson(link = "log"))
 summary(glm1)
-plot(glm1)
 check_model(glm1)
 #envelope(glm1, rep=100)
 ```
-Perimeter no es significativa
+Observamos que la variable *PERIMETER* no fue significativa, de igual manera parece ser que la raza tampoco es significativa.
 
-```{r glm2}
+Por otro lado parece ser que por condado hay correlación perfecta.
+
+Los residuales presentan un comportamiento creciente y más disperso, lo que indica un patrón no explicado y sobre dispersión.
+
+Hubo observaciones influyentes, sin embargo no son demasiadas.
+
+##glm2
+
+Para el siguiente modelo se decidió aplicar, usando las variables categoricas *gender*, *year* y *race*.
+
+```{r glm2, fig.height=10, fig.width=10}
 glm2 <- glm(cases~gender + year + race +
                offset(log(pop)),
             data=ohlung_long,family = poisson(link = "log"))
 summary(glm2)
-plot(glm2)
-
 check_model(glm2)
 #envelope(glm2, rep=500)
 ```
+Todas la variables salen significativas, sin embargo los residuales todavía presentar un comportamiento, es decir que hay un patrón no explicado en el modelo, posible sobre dispersión y se muestra problemas por la cantidad de 0's.
 
+## Quasi poisson
 
-```{r binomial negativa}
-bnglm <- glm.nb(formula = cases~gender + year + race +
-               offset(log(pop)),
-            data=ohlung_long )
-summary(bnglm)
-plot(bnglm)
+Tratando de manejar la sobredispersión se intentó realizar un modelo quasi poisson.
 
-
-check_model(bnglm)
-# envelope(bnglm, rep=500)
-```
-
-
-```{r quasi poisson}
+```{r quasi poisson, fig.height=10, fig.width=10}
 glm_qp <- glm(cases ~ gender + year + race + offset(log(pop)),
               family = quasipoisson(link = "log"),
               data = ohlung_long)
 summary(glm_qp)
-plot(glm_qp)
-
-
 check_model(glm_qp)
 ```
 
-```{r doblemente generalizado}
+Las estimaciones son prácticamente las mismas del modelo *glm2*, pero así mismo presentar el mismo problema de los residuales de este, excepto que en este los residuales no tienen ni si quiera el comportamiento de una distribución normal.
+
+## Doblemente generalizado
+
+```{r doblemente generalizado, fig.height=10, fig.width=10}
 
 dglm_model <- dglm(cases ~ gender + year + race,
                    offset = log(pop),
@@ -256,12 +258,16 @@ dglm_model <- dglm(cases ~ gender + year + race,
                    data = ohlung_long)
 
 summary(dglm_model)
-plot(dglm_model)
-
 check_model(dglm_model)
 ```
 
-```{r efecto aleatorio}
+En este ninguna variable se mostró como significativa y de hecho se vieron más observaciones influyentes, el comportamiento de los residuales no es para nada normal y sigue existiendo el problema del 0 inflado.
+
+## Efecto aleatorio
+
+Para controlar la sobre dispersión se decidió usar un efecto aleatorio por condado asumiendo que dentro de cada condado hay características diferentes no controlables, como la contaminación ambiental, recursos económicos o políticas de salud, entre otros.
+
+```{r efecto aleatorio, fig.height=10, fig.width=10}
 # Modelo poisson con efecto aleatorio por condado
 glmer <- glmer(cases ~ gender + race + year + (1 | NAME) + 
                         offset(log(pop)),
@@ -270,23 +276,32 @@ glmer <- glmer(cases ~ gender + race + year + (1 | NAME) +
 
 summary(glmer)
 plot(glmer)
-
-
 check_model(glmer)
 ```
 
-```{r binomial negativa efecto aleatorio}
-# Modelo con binomial negativa + efecto aleatorio por condado
-nbea <- glmmTMB(cases ~ gender + race + year + (1 | NAME) + 
-                       offset(log(pop)),
-                     family = nbinom2,          # ← aquí está el cambio clave
-                     data = ohlung_long)
+Nuevamente raza deja de ser significativo.
 
-summary(nbea)
-plot(fitted.values(nbea),residuals(nbea))
+Los residuales paraecn estar centrados y tener un comportamiento de una distribución normal, pero aunque parece haber mejorado un poco el porblema de los 0's inflados, todavía parece haber un poco de sobredispersión.
+
+Los efectos aleatorios tambien parecen cumplir con los supuestos.
+
+Se realizaron pruebas para verificar los resultados de las gráficas.
+
+### *Independencia:*
+```{r independencia1, echo=FALSE, fig.height=10, fig.width=10}
+acf(residuals(glmer))
+
 ```
 
-```{r 0 inflado poisson}
+Parecen haber algunas correlaciones entre los residuales.
+
+```{r}
+dwtest(residuals(glmer))
+```
+
+## 0 inflado
+
+```{r 0 inflado poisson, fig.height=10, fig.width=10}
 modelo_zip <- zeroinfl(
   cases ~ gender + race + year + offset(log(pop)),
   data = ohlung_long,
@@ -298,7 +313,38 @@ plot(predict(modelo_zip),residuals(modelo_zip))
 ```
 
 
-```{r 0 inflado binomial negativa}
+# Regresión binomial negativa
+
+## bnglm
+
+Para enfrentar los problemas de sobre dispersión se pensó en realizar un modelo con binomial negativa.
+```{r binomial negativa, fig.height=10, fig.width=10}
+bnglm <- glm.nb(formula = cases~gender + year + race +
+               offset(log(pop)),
+            data=ohlung_long )
+summary(bnglm)
+check_model(bnglm)
+# envelope(bnglm, rep=500)
+```
+
+Se destaca que el hecho de que las estimaciones son del mismo signo que en *glm2*, tambien hubo algunas que estaban bastente cercanas en número. Nuevamente todas las variables fueron significativas, pero el comportamiento de los residuales sigue viendose casi del mismo modo que en los modelos *glm1* y *glm2*.
+
+## Efecto aleatorio
+
+```{r binomial negativa efecto aleatorio, fig.height=10, fig.width=10}
+# Modelo con binomial negativa + efecto aleatorio por condado
+nbea <- glmmTMB(cases ~ gender + race + year + (1 | NAME) + 
+                       offset(log(pop)),
+                     family = nbinom2,          # ← aquí está el cambio clave
+                     data = ohlung_long)
+
+summary(nbea)
+plot(fitted.values(nbea),residuals(nbea))
+```
+
+## 0 inflado
+
+```{r 0 inflado binomial negativa, fig.height=10, fig.width=10}
 modelo_zinb <- zeroinfl(
   cases ~ gender + race + year + offset(log(pop)) | 1,
   data = ohlung_long,
