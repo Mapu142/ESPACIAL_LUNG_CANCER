@@ -5,7 +5,7 @@ date: "2026-03-02"
 output:
 ---
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
-rm(list = ls())
+#rm(list = ls())
 library(dplyr) # para manejo de datos
 library(sf) # para leer la base de datos
 library(ggplot2) # para gráficos
@@ -21,6 +21,8 @@ library(psych) # para pairs.panels(), parte descriptiva
 library(performance) # verificar supuestos de modelos
 library(glmtoolbox) # envelope
 library(lmtest) #Para prueba breusch pagan y durbin watson
+library(DHARMa) # para prueba de autocorrelación en residuales con glmer
+library(tseries) # para pruebas de rachas
 ```
 # Introducción {#PrInv}
 
@@ -220,6 +222,49 @@ Los residuales presentan un comportamiento creciente y más disperso, lo que ind
 
 Hubo observaciones influyentes, sin embargo no son demasiadas.
 
+## *Independecia*
+
+```{r acf glm1}
+acf(residuals.glm(glm1), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm1}
+dwtest(glm1)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+## *Normalidad*
+
+```{r graficos normales glm1}
+hist(residuals.glm(glm1),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glm1), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glm1), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver claramente un sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm1}
+shapiro.test(residuals.glm(glm1))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+## *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm1, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(glm1)
+
+```
+
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
+
 ##glm2
 
 Para el siguiente modelo se decidió aplicar, usando las variables categoricas *gender*, *year* y *race*.
@@ -233,6 +278,50 @@ check_model(glm2)
 #envelope(glm2, rep=500)
 ```
 Todas la variables salen significativas, sin embargo los residuales todavía presentar un comportamiento, es decir que hay un patrón no explicado en el modelo, posible sobre dispersión y se muestra problemas por la cantidad de 0's.
+
+
+## *Independecia*
+
+```{r acf glm2}
+acf(residuals.glm(glm2), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm2}
+dwtest(glm2)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+## *Normalidad*
+
+```{r graficos normales glm2}
+hist(residuals.glm(glm2),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glm2), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glm2), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver claramente un sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm2}
+shapiro.test(residuals.glm(glm2))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+## *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm2, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(glm2)
+
+```
+
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
 
 ## Quasi poisson
 
@@ -248,13 +337,59 @@ check_model(glm_qp)
 
 Las estimaciones son prácticamente las mismas del modelo *glm2*, pero así mismo presentar el mismo problema de los residuales de este, excepto que en este los residuales no tienen ni si quiera el comportamiento de una distribución normal.
 
+## *Independecia*
+
+```{r acf glm_qp}
+acf(residuals.glm(glm_qp), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_qp}
+dwtest(glm_qp)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+## *Normalidad*
+
+```{r graficos normales glm_qp}
+hist(residuals.glm(glm_qp),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glm_qp), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glm_qp), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_qp}
+shapiro.test(residuals.glm(glm_qp))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+## *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_qp, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(glm_qp)
+
+```
+
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
+
+
 ## Doblemente generalizado
 
 ```{r doblemente generalizado, fig.height=10, fig.width=10}
 
 dglm_model <- dglm(cases ~ gender + year + race,
+                   ~ gender,          
                    offset = log(pop),
-                   family = poisson,
+                   family = poisson(link = "log"),
+                   dfamily = Gamma(link = "log"),   
                    data = ohlung_long)
 
 summary(dglm_model)
@@ -263,40 +398,163 @@ check_model(dglm_model)
 
 En este ninguna variable se mostró como significativa y de hecho se vieron más observaciones influyentes, el comportamiento de los residuales no es para nada normal y sigue existiendo el problema del 0 inflado.
 
+## Modelo de media
+
+### *Independecia*
+
+```{r acf dglm_media}
+acf(residuals(dglm_model), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_media}
+dwtest(dglm_model)
+```
+En efecto se rechaza la independencia de los errores, con un p valor menor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_media}
+hist(residuals(dglm_model),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model), col = "red", lwd = 2)
+```
+
+Se ve claramente en el histograma un sesgo a derecha, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media}
+shapiro.test(residuals(dglm_model))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_media, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model),
+     residuals(dglm_model,type="pearson"))
+abline(h=0,col="red")
+
+```
+
+Podemos notar que se presenta una varianza creciente con una forma notoria en los residuales de cono.
+
+## Modelo de dispersión
+
+### *Independecia*
+
+```{r acf dglm_varianza}
+acf(residuals(dglm_model$dispersion.fit), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_varianza}
+dwtest(dglm_model$dispersion.fit)
+```
+En efecto se rechaza la independencia de los errores, con un p valor menor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_varianza}
+hist(residuals(dglm_model$dispersion.fit),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model$dispersion.fit), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model$dispersion.fit), col = "red", lwd = 2)
+```
+
+Se ve en el histograma un comportamiento bimodal, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media}
+shapiro.test(residuals(dglm_model$dispersion.fit))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_varianza, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model$dispersion.fit),
+     residuals(dglm_model$dispersion.fit))
+abline(h=0,col="red")
+
+```
+
+
 ## Efecto aleatorio
 
 Para controlar la sobre dispersión se decidió usar un efecto aleatorio por condado asumiendo que dentro de cada condado hay características diferentes no controlables, como la contaminación ambiental, recursos económicos o políticas de salud, entre otros.
 
 ```{r efecto aleatorio, fig.height=10, fig.width=10}
 # Modelo poisson con efecto aleatorio por condado
-glmer <- glmer(cases ~ gender + race + year + (1 | NAME) + 
+modelo_glmer <- glmer(cases ~ gender + race + year + (1 | NAME) + 
                         offset(log(pop)),
                       family = poisson(link = "log"),
                       data = ohlung_long)
 
-summary(glmer)
-plot(glmer)
-check_model(glmer)
+summary(modelo_glmer)
+plot(modelo_glmer)
+check_model(modelo_glmer)
 ```
 
 Nuevamente raza deja de ser significativo.
 
-Los residuales paraecn estar centrados y tener un comportamiento de una distribución normal, pero aunque parece haber mejorado un poco el porblema de los 0's inflados, todavía parece haber un poco de sobredispersión.
+Los residuales parecen estar centrados, sin embargo todavía parecen presentar problemas de heteroscedasticidad, aunque parece haber mejorado un poco el problema de los 0's inflados, todavía parece haber un poco de sobredispersión.
 
 Los efectos aleatorios tambien parecen cumplir con los supuestos.
 
 Se realizaron pruebas para verificar los resultados de las gráficas.
 
 ### *Independencia:*
-```{r independencia1, echo=FALSE, fig.height=10, fig.width=10}
-acf(residuals(glmer))
-
+```{r acf efecto aleatorio, echo=FALSE, fig.height=5, fig.width=10}
+acf(residuals(modelo_glmer))
 ```
 
 Parecen haber algunas correlaciones entre los residuales.
 
-```{r}
-dwtest(residuals(glmer))
+```{r efecto aleatorio, fig.height=7, fig.width=10}
+sim <- simulateResiduals(modelo_glmer)
+plot(sim)
+testResiduals(sim)
+```
+
+Se decidió realizar una prueba de rachas 
+
+
+```{r rachas efecto aleatorio}
+runs.test(factor(residuals(modelo_glmer) > 0))
+```
+Como el p valor obtuvo un valor mayor al nivel de significancia, no se rechaza $H_0:$ los residuales son independientes.
+
+### *Normalidad*
+
+```{r graficos normales efecto aleatorio, fig.height=7, fig.width=10}
+hist(residuals(modelo_glmer),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(modelo_glmer), main = "QQ-Plot de los residuales")
+qqline(residuals(modelo_glmer), col = "red", lwd = 2)
+```
+
+Se ve en el histograma un sesgamiento a derecha, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba efecto aleatorio}
+shapiro.test(residuals(modelo_glmer))
+```
+Como el p valor es menor al nivel de significancia ($\alpha=0.05$), se rechaza $H_0:$ los residuales provienen de una población normal.
+
+### *Homocedasticidad*
+
+
+```{r breusch-pagan efecto aleatorio, echo=FALSE, message=FALSE, warning=FALSE}
+sim_res <- simulateResiduals(modelo_glmer)
+plot(sim_res)
+
 ```
 
 ## 0 inflado
@@ -312,6 +570,12 @@ summary(modelo_zip)
 plot(predict(modelo_zip),residuals(modelo_zip))
 ```
 
+
+## *Independecia*
+
+## *Normalidad*
+
+## *Homocedasticidad*
 
 # Regresión binomial negativa
 
@@ -329,6 +593,50 @@ check_model(bnglm)
 
 Se destaca que el hecho de que las estimaciones son del mismo signo que en *glm2*, tambien hubo algunas que estaban bastente cercanas en número. Nuevamente todas las variables fueron significativas, pero el comportamiento de los residuales sigue viendose casi del mismo modo que en los modelos *glm1* y *glm2*.
 
+### *Independecia*
+
+```{r acf bnglm}
+acf(residuals(bnglm), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra una leve señal de correlación en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm1}
+dwtest(bnglm)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+### *Normalidad*
+
+```{r graficos normales glm1}
+hist(residuals(bnglm),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(bnglm), main = "QQ-Plot de los residuales")
+qqline(residuals(bnglm), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver aproximadamente una distribución simétrica alrededor entre -1 y 0, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm1}
+shapiro.test(residuals(bnglm))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm1, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(bnglm)
+
+```
+
+Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
+
+
 ## Efecto aleatorio
 
 ```{r binomial negativa efecto aleatorio, fig.height=10, fig.width=10}
@@ -340,7 +648,56 @@ nbea <- glmmTMB(cases ~ gender + race + year + (1 | NAME) +
 
 summary(nbea)
 plot(fitted.values(nbea),residuals(nbea))
+check_model(nbea)
 ```
+
+### *Independencia:*
+```{r acf bn efecto aleatorio, echo=FALSE, fig.height=5, fig.width=10}
+acf(residuals(nbea))
+```
+
+Parecen haber algunas correlaciones entre los residuales.
+
+```{r bn residuales efecto aleatorio, fig.height=7, fig.width=10}
+sim <- simulateResiduals(nbea)
+plot(sim)
+testResiduals(sim)
+```
+
+Se decidió realizar una prueba de rachas 
+
+
+```{r rachas efecto aleatorio}
+runs.test(factor(residuals(nbea) > 0))
+```
+Como el p valor obtuvo un valor mayor al nivel de significancia, no se rechaza $H_0:$ los residuales son independientes.
+
+### *Normalidad*
+
+```{r graficos normales bn efecto aleatorio, fig.height=7, fig.width=10}
+hist(residuals(nbea),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(nbea), main = "QQ-Plot de los residuales")
+qqline(residuals(nbea), col = "red", lwd = 2)
+```
+
+Se ve centralidad alrededor de 0 y una distribución simétrica, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba nbea}
+shapiro.test(residuals(nbea))
+```
+Como el p valor es menor al nivel de significancia ($\alpha=0.05$), se rechaza $H_0:$ los residuales provienen de una población normal.
+
+### *Homocedasticidad*
+
+
+```{r efecto aleatorio, echo=FALSE, message=FALSE, warning=FALSE}
+sim_res <- simulateResiduals(nbea)
+plot(sim_res)
+
+```
+
 
 ## 0 inflado
 
@@ -354,3 +711,10 @@ modelo_zinb <- zeroinfl(
 summary(modelo_zinb)
 plot(predict(modelo_zinb),residuals(modelo_zinb))
 ```
+
+
+## *Independecia*
+
+## *Normalidad*
+
+## *Homocedasticidad*
