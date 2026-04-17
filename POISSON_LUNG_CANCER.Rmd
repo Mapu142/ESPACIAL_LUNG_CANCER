@@ -23,6 +23,7 @@ library(glmtoolbox) # envelope
 library(lmtest) #Para prueba breusch pagan y durbin watson
 library(DHARMa) # para prueba de autocorrelación en residuales con glmer
 library(tseries) # para pruebas de rachas
+library(spdep) # para función poly2nb en vecindad criterio queen
 ```
 # Introducción {#PrInv}
 
@@ -66,8 +67,7 @@ knitr::kable(variables, caption = "Definición de variables principales en la ba
 ```
 Se realizó una modificación del formato de la tabla para poder trabajar con las variables sexó (Femenino, Masculino), año(1968, 1978, 1988) y raza (Blanco, Negro)
 ```{r formato largo, echo=FALSE, message=FALSE, warning=FALSE}
-ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) %>%
-  st_drop_geometry() 
+ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) 
 ohlung_long <- ohlung %>%
   dplyr::select(COUNTYID, NAME, AREA, PERIMETER,
                 LMW68, LFW68, LMB68, LFB68,
@@ -75,7 +75,7 @@ ohlung_long <- ohlung %>%
                 LMW78, LFW78, LMB78, LFB78,
                 POPMW78, POPFW78, POPMB78, POPFB78,
                 LMW88, LFW88, LMB88, LFB88,
-                POPMW88, POPFW88, POPMB88, POPFB88) %>%
+                POPMW88, POPFW88, POPMB88, POPFB88, geometry) %>%
   tidyr::pivot_longer(
     cols = dplyr::matches("^(LMW|LFW|LMB|LFB|POPMW|POPFW|POPMB|POPFB)\\d{2}$"),
     names_to = "temp",
@@ -93,7 +93,7 @@ ohlung_long <- ohlung %>%
     gender = as.factor(gender),
     race = as.factor(race),
     year   = as.factor(year)
-  )
+  ) %>% arrange(COUNTYID)
 
 knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
 ```
@@ -106,7 +106,9 @@ ohlung_long %>%
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
 ```{r matriz dispersion, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
-numericas <- ohlung_long %>% dplyr::select(-c(COUNTYID,NAME,gender,race,year))
+numericas <- ohlung_long %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(-c(COUNTYID,NAME,gender,race,year))
 pairs.panels(numericas)
 ```
 ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y las variables dependientes, casos y población, tienen una correlación baja con las demás variables.
@@ -713,8 +715,17 @@ plot(predict(modelo_zinb),residuals(modelo_zinb))
 ```
 
 
-## *Independecia*
+### *Independecia*
 
-## *Normalidad*
+### *Normalidad*
 
-## *Homocedasticidad*
+### *Homocedasticidad*
+
+# Regresión espacial
+
+```{r ohlung sf}
+ohlung_sf <- sf::read_sf("ohiolung/ohlung.shp")
+
+rook_nb <- nb2listw(poly2nb(ohlung_sf,queen=FALSE), 
+                    style="W",zero.policy = TRUE)
+```
