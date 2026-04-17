@@ -101,7 +101,8 @@ knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato lar
 ohlung_long %>%
   dplyr::select(cases) %>%
   dplyr::filter(cases == 0) %>%
-  dplyr::summarise(count = n())
+  dplyr::summarise(count = n()) %>% 
+  sf::st_drop_geometry()
 ```
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
@@ -206,6 +207,34 @@ top_condados2 <-  ohlung_long %>%
 knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
 ```
 
+# Matrices W
+
+```{r matriz W, include=FALSE}
+#Physical neighbours
+rook_nb_b <- nb2listw(poly2nb(ohlung_long,queen=FALSE), 
+                      style="B",zero.policy = TRUE)
+rook_nb_w <- nb2listw(poly2nb(ohlung_long,queen=FALSE), 
+                      style="W",zero.policy = TRUE)
+queen_nb_b <- nb2listw(poly2nb(ohlung_long,queen=TRUE), 
+                       style="B",zero.policy = TRUE)
+queen_nb_w <- nb2listw(poly2nb(ohlung_long,queen=TRUE), 
+                       style="W",zero.policy = TRUE)
+
+```
+
+```{r bucle independiente}
+mat <- list(rook_nb_b,rook_nb_w,
+         queen_nb_b,queen_nb_w)
+
+aux <- numeric(0)
+for(i in 1:length(mat)){
+   aux[i]=moran.test(ohlung_long$cases/ohlung_long$pop, mat[[i]], alternative="two.sided")$p.value
+}
+which.min(aux)
+mat[[which.min(aux)]]
+moran.test(ohlung_long$cases/ohlung_long$pop, mat[[which.min(aux)]], alternative="two.sided")
+```
+
 # Regresión poisson
 
 ## glm1
@@ -237,6 +266,8 @@ El correlograma muestra que no parece haber una correlación fuerte en los resid
 dwtest(glm1)
 ```
 Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+
 
 ## *Normalidad*
 
