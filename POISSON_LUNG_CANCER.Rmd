@@ -211,13 +211,13 @@ knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
 
 ```{r matriz W, include=FALSE}
 #Physical neighbours
-rook_nb_b <- nb2listw(poly2nb(ohlung_long,queen=FALSE), 
+rook_nb_b <- nb2listw(poly2nb(ohlung,queen=FALSE), 
                       style="B",zero.policy = TRUE)
-rook_nb_w <- nb2listw(poly2nb(ohlung_long,queen=FALSE), 
+rook_nb_w <- nb2listw(poly2nb(ohlung,queen=FALSE), 
                       style="W",zero.policy = TRUE)
-queen_nb_b <- nb2listw(poly2nb(ohlung_long,queen=TRUE), 
+queen_nb_b <- nb2listw(poly2nb(ohlung,queen=TRUE), 
                        style="B",zero.policy = TRUE)
-queen_nb_w <- nb2listw(poly2nb(ohlung_long,queen=TRUE), 
+queen_nb_w <- nb2listw(poly2nb(ohlung,queen=TRUE), 
                        style="W",zero.policy = TRUE)
 
 ```
@@ -228,11 +228,19 @@ mat <- list(rook_nb_b,rook_nb_w,
 
 aux <- numeric(0)
 for(i in 1:length(mat)){
-   aux[i]=moran.test(ohlung_long$cases/ohlung_long$pop, mat[[i]], alternative="two.sided")$p.value
+   aux[i]=moran.test(rowSums(
+  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry(),
+  na.rm = TRUE)/rowSums(
+  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry(),
+  na.rm = TRUE), mat[[i]], alternative="two.sided")$p.value
 }
 which.min(aux)
 mat[[which.min(aux)]]
-moran.test(ohlung_long$cases/ohlung_long$pop, mat[[which.min(aux)]], alternative="two.sided")
+moran.test(rowSums(
+  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry(),
+  na.rm = TRUE)/rowSums(
+  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry(),
+  na.rm = TRUE), mat[[which.min(aux)]], alternative="two.sided")
 ```
 
 # Regresión poisson
