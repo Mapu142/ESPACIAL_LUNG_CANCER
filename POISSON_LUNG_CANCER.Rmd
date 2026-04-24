@@ -119,6 +119,7 @@ Se destaca en los gráficos de dispersión que a pesar de que la correlación al
 El coeficiente empleado en este gráfico es el coeficiente de correlación lineal de Pearson,
 
 
+
 ```{r descriptiva categoricas, echo=FALSE, fig.height=7, fig.width=10}
 boxplot(cases/pop ~ gender, data=ohlung_long)
 boxplot(cases/pop ~ race, data=ohlung_long)
@@ -210,14 +211,20 @@ knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
 # Matrices W
 
 ```{r matriz W, include=FALSE}
+ohlung$casos_totales <- rowSums(
+  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry())
+
+ohlung$pop_total <- rowSums(
+  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry()) 
+
 #Physical neighbours
-rook_nb_b <- nb2listw(poly2nb(ohlung_long,queen=FALSE), 
+rook_nb_b <- nb2listw(poly2nb(ohlung,queen=FALSE), 
                       style="B",zero.policy = TRUE)
-rook_nb_w <- nb2listw(poly2nb(ohlung_long,queen=FALSE), 
+rook_nb_w <- nb2listw(poly2nb(ohlung,queen=FALSE), 
                       style="W",zero.policy = TRUE)
-queen_nb_b <- nb2listw(poly2nb(ohlung_long,queen=TRUE), 
+queen_nb_b <- nb2listw(poly2nb(ohlung,queen=TRUE), 
                        style="B",zero.policy = TRUE)
-queen_nb_w <- nb2listw(poly2nb(ohlung_long,queen=TRUE), 
+queen_nb_w <- nb2listw(poly2nb(ohlung,queen=TRUE), 
                        style="W",zero.policy = TRUE)
 
 ```
@@ -228,19 +235,90 @@ mat <- list(rook_nb_b,rook_nb_w,
 
 aux <- numeric(0)
 for(i in 1:length(mat)){
-   aux[i]=moran.test(ohlung_long$cases/ohlung_long$pop, mat[[i]], alternative="two.sided")$p.value
+   aux[i]=moran.test(rowSums(
+  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry(),
+  na.rm = TRUE)/rowSums(
+  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry(),
+  na.rm = TRUE), mat[[i]], alternative="two.sided")$p.value
 }
 which.min(aux)
 mat[[which.min(aux)]]
-moran.test(ohlung_long$cases/ohlung_long$pop, mat[[which.min(aux)]], alternative="two.sided")
+moran.test(ohlung$casos_totales/ohlung$pop_total, mat[[which.min(aux)]], alternative="two.sided")
+```
+
+```{r correlacion sf, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
+numericas_sf <- ohlung %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(-c(COUNTYID,NAME,FIPSNO,RECORD_ID))
+y <- ohlung$casos_totales / ohlung$pop_total
+y_c <- y - mean(y)
+
+W <- listw2mat(queen_nb_w)
+n <- length(y)
+S0 <- sum(W)
+
+resultados <- data.frame()
+
+for (i in names(numericas_sf)) {
+  
+  x <- numericas_sf[[i]]
+  
+  # evitar NA
+  valid <- complete.cases(x, y)
+  x <- x[valid]
+  y_sub <- y[valid]
+  
+  x_c <- x - mean(x)
+  y_c <- y_sub - mean(y_sub)
+  
+  I_xy <- (n / S0) * (t(x_c) %*% W[valid, valid] %*% y_c) / 
+          sqrt(sum(x_c^2) * sum(y_c^2))
+  
+  resultados <- rbind(resultados,
+                      data.frame(variable = i,
+                                 Moran_bivariado = I_xy))
+}
+resultados <- resultados %>% desc(Moran_bivariado)
+kable(resultados,caption = "Correlación con la variable independiente")
+
+```
+
+```{r}
+resultados2 <- data.frame()
+for (i in names(numericas_sf)) {
+  
+  x <- numericas_sf[[i]]
+  
+  # evitar NA
+  valid <- complete.cases(x, y)
+  x <- x[valid]
+  
+  x_c <- x - mean(x)
+   
+  I_xy <- (n / S0) * (t(x_c) %*% W[valid, valid] %*% x_c) / 
+          sum(x_c^2)
+  
+  resultados2 <- rbind(resultados,
+                      data.frame(variable = i,
+                                 Moran_bivariado = I_xy))
+}
+resultados2 <- resultado2s %>% desc(Moran_bivariado)
+kable(resultados2,caption = "Correlación con la variable independiente")
 ```
 
 # Regresión poisson
 
+
 ## glm1
 ```{r glm1, echo=FALSE, fig.height=10, fig.width=10, warning=FALSE}
-glm1 <- glm(cases~PERIMETER+year+gender+race+NAME+offset(log(pop)),
-            data=ohlung_long,family = poisson(link = "log"))
+glm1 <- glm(casos_totales~AREA+PERIMETER+LMW68+POPMW68+
+              LMB68+POPMB68+LM68+POPM68+LFW68+POPFW68+LFB68+
+              POPFB68+LF68+POPF68+LMW78+POPMW78+LMB78+
+              POPMB78+LM78+POPM78+LFW78+POPFW78+LFB78+
+              POPFB78+LF78+POPF78+LMW88+POPMW88+LMB88+POPMB88+LM88+
+              POPM88+LFW88+POPFW88+LFB88+POPFB88+LF88+POPF88+
+              offset(log(pop_total)),
+            data=ohlung,family = poisson(link = "log"))
 summary(glm1)
 check_model(glm1)
 #envelope(glm1, rep=100)
@@ -267,7 +345,9 @@ dwtest(glm1)
 ```
 Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
 
-
+```{r}
+moran.test(residuals.glm(glm1), listw = queen_nb_w)
+```
 
 ## *Normalidad*
 
@@ -298,72 +378,15 @@ bptest(glm1)
 
 Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
 
-##glm2
-
-Para el siguiente modelo se decidió aplicar, usando las variables categoricas *gender*, *year* y *race*.
-
-```{r glm2, fig.height=10, fig.width=10}
-glm2 <- glm(cases~gender + year + race +
-               offset(log(pop)),
-            data=ohlung_long,family = poisson(link = "log"))
-summary(glm2)
-check_model(glm2)
-#envelope(glm2, rep=500)
-```
-Todas la variables salen significativas, sin embargo los residuales todavía presentar un comportamiento, es decir que hay un patrón no explicado en el modelo, posible sobre dispersión y se muestra problemas por la cantidad de 0's.
-
-
-## *Independecia*
-
-```{r acf glm2}
-acf(residuals.glm(glm2), main = "ACF de los residuales", col = "blue", lwd = 2)
-
-```
-
-El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
-
-```{r independencia glm2}
-dwtest(glm2)
-```
-Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
-
-## *Normalidad*
-
-```{r graficos normales glm2}
-hist(residuals.glm(glm2),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals.glm(glm2), main = "QQ-Plot de los residuales")
-qqline(residuals.glm(glm2), col = "red", lwd = 2)
-```
-
-En el histograma podemos ver claramente un sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba glm2}
-shapiro.test(residuals.glm(glm2))
-```
-De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
-
-
-## *Homocedasticidad*
-
-Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
-
-```{r breusch-pagan glm2, echo=FALSE, message=FALSE, warning=FALSE}
-bptest(glm2)
-
-```
-
-Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
 
 ## Quasi poisson
 
 Tratando de manejar la sobredispersión se intentó realizar un modelo quasi poisson.
 
 ```{r quasi poisson, fig.height=10, fig.width=10}
-glm_qp <- glm(cases ~ gender + year + race + offset(log(pop)),
+glm_qp <- glm(casos_totales ~ PERIMETER + LMW68 +offset(log(pop_total)),
               family = quasipoisson(link = "log"),
-              data = ohlung_long)
+              data = ohlung)
 summary(glm_qp)
 check_model(glm_qp)
 ```
