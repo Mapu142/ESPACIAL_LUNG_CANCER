@@ -24,6 +24,7 @@ library(lmtest) #Para prueba breusch pagan y durbin watson
 library(DHARMa) # para prueba de autocorrelación en residuales con glmer
 library(tseries) # para pruebas de rachas
 library(spdep) # para función poly2nb en vecindad criterio queen
+library(tmap) #para graficar mapa
 ```
 # Introducción {#PrInv}
 
@@ -68,6 +69,44 @@ knitr::kable(variables, caption = "Definición de variables principales en la ba
 Se realizó una modificación del formato de la tabla para poder trabajar con las variables sexó (Femenino, Masculino), año(1968, 1978, 1988) y raza (Blanco, Negro)
 ```{r formato largo, echo=FALSE, message=FALSE, warning=FALSE}
 ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) 
+
+ohlung$casos_totales <- rowSums(
+  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry())
+
+ohlung$casos_totales68 <- rowSums(
+  ohlung[, c("LM68", "LF68")] %>% sf::st_drop_geometry())
+
+ohlung$casos_totales78 <- rowSums(
+  ohlung[, c("LM78", "LF78")] %>% sf::st_drop_geometry())
+
+ohlung$casos_totales88 <- rowSums(
+  ohlung[, c("LM88", "LF88")] %>% sf::st_drop_geometry())
+
+ohlung$pop_total <- rowSums(
+  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry())
+
+ohlung$pop_total68 <- rowSums(
+  ohlung[, c("POPM68", "POPF68")] %>% sf::st_drop_geometry())
+
+ohlung$pop_total78 <- rowSums(
+  ohlung[, c("POPM78", "POPF78")] %>% sf::st_drop_geometry())
+
+ohlung$pop_total88 <- rowSums(
+  ohlung[, c("POPM88", "POPF88")] %>% sf::st_drop_geometry())
+
+ohlung$tasa_68 <- ohlung$casos_totales68 / ohlung$pop_total68
+
+ohlung$tasa_78 <- ohlung$casos_totales78 / ohlung$pop_total78
+
+ohlung$tasa_88 <- ohlung$casos_totales88 / ohlung$pop_total88
+
+ohlung$cambio_68_88 <- ohlung$tasa_88 - ohlung$tasa_68
+
+ohlung$cambio_78_88 <- ohlung$tasa_88 - ohlung$tasa_78
+
+ohlung$cambio_68_78 <- ohlung$tasa_78 - ohlung$tasa_68
+
+
 ohlung_long <- ohlung %>%
   dplyr::select(COUNTYID, NAME, AREA, PERIMETER,
                 LMW68, LFW68, LMB68, LFB68,
@@ -112,7 +151,7 @@ numericas <- ohlung_long %>%
   dplyr::select(-c(COUNTYID,NAME,gender,race,year))
 pairs.panels(numericas)
 ```
-ALta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y las variables dependientes, casos y población, tienen una correlación baja con las demás variables.
+Alta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y las variables dependientes, casos y población, tienen una correlación baja con las demás variables.
 
 Se destaca en los gráficos de dispersión que a pesar de que la correlación alta moderada entre *Área* y *Perímetro*, las variables *Casos* y *Población* se comportan igualmente diferente en ambas variables, es decir, para *Casos* y *Población* se puede ver que hay más dispersión con la variable *Área* que con la variable *Perímetro*.
 
@@ -121,9 +160,16 @@ El coeficiente empleado en este gráfico es el coeficiente de correlación linea
 
 
 ```{r descriptiva categoricas, echo=FALSE, fig.height=7, fig.width=10}
-boxplot(cases/pop ~ gender, data=ohlung_long)
-boxplot(cases/pop ~ race, data=ohlung_long)
-boxplot(cases/pop ~ year, data=ohlung_long)
+par(mfrow=c(1,2), bg = 'antiquewhite3')
+boxplot(ohlung$tasa_white_68, col = "lightblue", main = "Año 68")
+boxplot(ohlung$tasa_black_68, col = "pink" )
+legend('topright',lty = 1:2,legend = c("White", 'Black'), col = c('lightblue','pink'))
+boxplot(ohlung$tasa_white_78, col = "lightblue", main = "Año 68")
+boxplot(ohlung$tasa_black_78, col = "pink")
+legend('topright',lty = 1:2,legend = c("White", 'Black'), col = c('lightblue','pink'))
+boxplot(ohlung$tasa_white_88, col = "lightblue", main = "Año 68")
+boxplot(ohlung$tasa_black_88, col = "pink")
+legend('topright',lty = 1:2,legend = c("White", 'Black'), col = c('lightblue','pink'))
 
 tabla_conteos <- dplyr::bind_rows(ohlung_long %>% 
              dplyr::group_by(categoria=gender) %>% 
@@ -133,52 +179,36 @@ tabla_conteos <- dplyr::bind_rows(ohlung_long %>%
              dplyr::summarise(conteo=sum(cases/pop)),
            ohlung_long %>% 
              dplyr::group_by(categoria=year) %>% 
-             dplyr::summarise(conteo=sum(cases/pop)))
+             dplyr::summarise(conteo=sum(cases/pop))) %>% 
+  sf::st_drop_geometry()
 knitr::kable(tabla_conteos,
              caption = "Tasas de incidencia por variable categórica")
 ```
-Presencia de datos atípicos por años, mas dispersión conforme pasan los años, sin embargo la media parece mantenerse.Más dispersos en hombres que mujeres pero media constante, más datos atípicos por hombres que por mujeres.
+En el primer gráfico
 
 ```{r}
-plot(ohlung_long$pop,ohlung_long$cases)
+plot(ohlung$pop_total,ohlung$casos_totales, col = 'antiquewhite3')
+plot(ohlung$pop_total68,ohlung$casos_totales68, col = 'antiquewhite3')
+plot(ohlung$pop_total78,ohlung$casos_totales78, col = 'antiquewhite3')
+plot(ohlung$pop_total88,ohlung$casos_totales88, col = 'antiquewhite3')
 ```
+En general los totales de casos y poblaciones en los distintos años se comportan de manera lineal.
 
 ```{r}
-casos_condado <- ohlung_long %>%
+casos_condado <- ohlung_long %>% 
   group_by(NAME,year,gender) %>%
-  summarise(casos = sum(cases, na.rm = TRUE), .groups = "drop")
+  summarise(tasas = sum(cases/pop, na.rm = TRUE), .groups = "drop")
 
 top_condados <- ohlung_long %>%
   group_by(NAME) %>%
-  summarise(total_casos = sum(cases, na.rm = TRUE)) %>%
-  slice_max(total_casos, n = 15)
+  summarise(total_tasas = sum(cases/pop, na.rm = TRUE)) %>%
+  slice_max(total_tasas, n = 15)
 
 ggplot(
   casos_condado %>% filter(NAME %in% top_condados$NAME),
   aes(
     x = NAME,
-    y = casos,
-    fill = factor(year)
-  )
-) +
-  geom_col(position = "dodge") +
-  coord_flip() +
-  labs(
-    title = "Casos de cancer por condado y year",
-    x = "Condado",
-    y = "Numero de casos",
-    fill = "year"
-  ) +
-  theme_minimal()
-```
-Podemos ver que por condado va aumentando los casos cada año evaluado.
-
-```{r}
-ggplot(
-  casos_condado %>% filter(NAME %in% top_condados$NAME),
-  aes(
-    x = NAME,
-    y = casos,
+    y = tasas,
     fill = gender,
     group = interaction(year, gender)
   )
@@ -190,7 +220,7 @@ ggplot(
   coord_flip() +
   facet_grid(~ year) +
   labs(
-    title = "Casos de cancer por condado, year y genero",
+    title = "Tasas de cancer por condado, year y género",
     x = "Condado",
     y = "Numero de casos",
     fill = "Genero"
@@ -202,20 +232,108 @@ Podemos ver más registros o casos en los hombres que en las mujeres en los dist
 ```{r}
 top_condados2 <-  ohlung_long %>%  
   group_by(NAME) %>%
-  summarise(total_casos = sum(cases, na.rm = TRUE),
+  summarise(total_tasas = sum(cases/pop, na.rm = TRUE),
             area = first(AREA)) %>% 
-  slice_max(total_casos, n = 15)
-knitr::kable(top_condados2, caption = "Top 15 condados con mas casos")
+  slice_max(total_tasas, n = 15) %>% 
+  sf::st_drop_geometry()
+knitr::kable(top_condados2, caption = "Top 15 condados con tasas más altas")
 ```
+
+## Exploración espacial
+
+```{r}
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_68", palette="Reds"),
+  tm_shape(ohlung) + tm_fill("tasa_78",palette="Reds"),
+  tm_shape(ohlung) + tm_fill("tasa_88",palette="Reds")
+)
+
+```
+
+Podemos ver que en los años se ha presentado un aumento de la tasa de incidencia de cancer de pulmón.
+
+
+
+```{r}
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("cambio_68_88"),
+  tm_shape(ohlung) + tm_fill("cambio_68_78"),
+  tm_shape(ohlung) + tm_fill("cambio_78_88")
+  
+)
+```
+En este se realizó una diferencia de las tasas en los años, tal diferencia significa que si es positiva quiere decir que aumento, y si es negativa quiere decir que disminuyó. Podemos ver que comparando las tasas de los años de 1968 y 1988, casi no hay tasas negativas, lo que indica que en general entre 1968 y 1988 hubo un aumento de casos de cancer de pulmón. Por otro lado comparando los años 1968 y 1978, podemos ver más condados con tasas negativas, lo que indica que hubo una disminución, esto es importante porque si bien vimos en el anterior mapa que la tasa aumentaba conforme los años, no quiere decir que en todos los contados hubo un aumento. Por último entre los años 1978 y 1988 podemos ver que fueron más constantes las tasas, es decir que no hubo un aumento  signficativo en la mayoría de condados (resaltados por el verde claro), además tambien podemos ver que hay tasas que siguieron disminuyendo (morado).
+
+
+```{r include=FALSE}
+ohlung$tasa_white_68 <- rowSums(ohlung[,c('LMW68','LFW68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW68','POPFW68')]%>% sf::st_drop_geometry()) 
+ohlung$tasa_black_68 <- rowSums(ohlung[,c('LMB68','LFB68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB68','POPFB68')]%>% sf::st_drop_geometry()) 
+
+ohlung$tasa_white_78 <- rowSums(ohlung[,c('LMW78','LFW78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW78','POPFW78')]%>% sf::st_drop_geometry()) 
+ohlung$tasa_black_78 <- rowSums(ohlung[,c('LMB78','LFB78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB78','POPFB78')]%>% sf::st_drop_geometry()) 
+
+ohlung$tasa_white_88 <- rowSums(ohlung[,c('LMW88','LFW88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW88','POPFW88')]%>% sf::st_drop_geometry()) 
+ohlung$tasa_black_88 <- rowSums(ohlung[,c('LMB88','LFB88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB88','POPFB88')]%>% sf::st_drop_geometry()) 
+```
+
+```{r}
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_white_68"),
+  tm_shape(ohlung) + tm_fill("tasa_black_68")
+)
+
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_white_78"),
+  tm_shape(ohlung) + tm_fill("tasa_black_78")
+)
+
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_white_88"),
+  tm_shape(ohlung) + tm_fill("tasa_black_88")
+)
+```
+
+Algo notorio que podemos observar, es la tasa constante de las personas negras con cancer de pulmón en el mapa de cada año, es decir, que no hay tanta varianción entre condados, también se ve que las tasas de la población negra son mayores que las tasas de la población blanca, además con el paso de los años aumenta.
+
+En general se ve un aumento en las tasas de cancer de pulmón, más notoriamente en la población de blancos que en la población de negros.
+
+```{r include=FALSE}
+ohlung$tasa_mujer_68 <- ohlung$LF68 / ohlung$POPF68
+ohlung$tasa_hombre_68 <- ohlung$LM68 / ohlung$POPM68
+
+ohlung$tasa_mujer_78 <- ohlung$LF78 / ohlung$POPF78
+ohlung$tasa_hombre_78 <- ohlung$LM78 / ohlung$POPM78
+
+ohlung$tasa_mujer_88 <- ohlung$LF88 / ohlung$POPF88
+ohlung$tasa_hombre_88 <- ohlung$LM88 / ohlung$POPM88
+```
+
+```{r}
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_mujer_68"),
+  tm_shape(ohlung) + tm_fill("tasa_hombre_68")
+)
+
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_mujer_78"),
+  tm_shape(ohlung) + tm_fill("tasa_hombre_78")
+)
+
+tmap_arrange(
+  tm_shape(ohlung) + tm_fill("tasa_mujer_88"),
+  tm_shape(ohlung) + tm_fill("tasa_hombre_88")
+)
+```
+Podemos ver que en ambos grupos se presenta variación a través de los condados, además de esto los hombres presentan tasas más altas de cancer de pulmón, las cuales aumentan conforme pasan los años.
+
+Algo que se debe resaltar es que hay un aumento en las tasas tanto de hombres como de mujeres entre 1978 y 1988.
+
+
 
 # Matrices W
 
 ```{r matriz W, include=FALSE}
-ohlung$casos_totales <- rowSums(
-  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry())
-
-ohlung$pop_total <- rowSums(
-  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry()) 
+ 
 
 #Physical neighbours
 rook_nb_b <- nb2listw(poly2nb(ohlung,queen=FALSE), 
@@ -245,6 +363,8 @@ which.min(aux)
 mat[[which.min(aux)]]
 moran.test(ohlung$casos_totales/ohlung$pop_total, mat[[which.min(aux)]], alternative="two.sided")
 ```
+Con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la hipotesis nula, la cual habla sobre la independencia espacial.
+
 
 ```{r correlacion sf, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
 numericas_sf <- ohlung %>% 
