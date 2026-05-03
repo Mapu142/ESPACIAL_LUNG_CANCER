@@ -145,17 +145,9 @@ ohlung_long %>%
 ```
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
-```{r matriz dispersion, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
-numericas <- ohlung_long %>% 
-  sf::st_drop_geometry() %>% 
-  dplyr::select(-c(COUNTYID,NAME,gender,race,year))
-pairs.panels(numericas)
-```
-Alta correlación entre casos y población, se presenta correlación moderadamente alta entre el área y el perímetro. En las correlaciones parciales podemos ver que la relación entre las variables independientes, área y perímetro, y las variables dependientes, casos y población, tienen una correlación baja con las demás variables.
 
-Se destaca en los gráficos de dispersión que a pesar de que la correlación alta moderada entre *Área* y *Perímetro*, las variables *Casos* y *Población* se comportan igualmente diferente en ambas variables, es decir, para *Casos* y *Población* se puede ver que hay más dispersión con la variable *Área* que con la variable *Perímetro*.
 
-El coeficiente empleado en este gráfico es el coeficiente de correlación lineal de Pearson,
+
 
 
 
@@ -328,11 +320,67 @@ Podemos ver que en ambos grupos se presenta variación a través de los condados
 
 Algo que se debe resaltar es que hay un aumento en las tasas tanto de hombres como de mujeres entre 1978 y 1988.
 
+```{r matriz dispersion, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
+numericas <- ohlung %>% 
+  sf::st_drop_geometry() %>% 
+  dplyr::select(-c(COUNTYID,FIPSNO,RECORD_ID,NAME))
+cor_numericas <- cor(numericas)
+
+correlacion <- lapply(seq_len(ncol(cor_numericas)), function(i) {
+  
+  cor_vec <- cor_numericas[i, ]
+  
+  # quitar autocorrelación
+  cor_vec <- cor_vec[-i]
+  
+  # ordenar
+  cor_ordenadas <- sort(cor_vec, decreasing = TRUE)
+  
+  paste(names(cor_ordenadas), round(cor_ordenadas, 3), sep = ";")
+})
+
+# convertir a data.frame
+correlacion <- as.data.frame(correlacion)
+
+# nombres de columnas = variables originales
+colnames(correlacion) <- colnames(cor_numericas)
+
+kableExtra::kable(correlacion, caption = "Correlación de pearson",
+                  digits = 3)
+```
+Lo que podemos destacar de la tabla es:
+
+* Podemos evidenciar que área y perímetro solo tienen una fuerte correlación lineal entre ellas, mientras que con el resto de las variables (incluyendo la variable respuesta) presentan una correlación baja, por lo que no serán selecionadas para el modelo.
+
+* Las variables explicativas originales presentan alta correlación entre sí, por lo que solo se conservará variables que guarden la información de sexo, y raza.
+
+*Variables explicativas seleccionadas:*
+
+* *LMW68*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1968.
+
+* *LMW78*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1978.
+
+* *LFW68*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1968.
+
+* *LFW78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1978.
 
 
 # Matrices W
 
 ```{r matriz W, include=FALSE}
+
+#- Crea puntos representativos (centroides) 
+st_crs(ohlung) <- 26917
+xy0 <- st_centroid(ohlung)  
+coords <- st_coordinates(xy0) # Extrae coordenadas
+head(coords)
+
+#- Grafica el mapa de municipios con los centroides ----
+plot(st_geometry(ohlung), border = "grey",
+     col = "white", axes = TRUE) # Mapa base de municipios
+title(main = "Condados de Ohaio") # Título
+plot(st_geometry(xy0), add = TRUE, pch = 19, cex = 0.5) # Centroides encima
+grid() # Cuadrícula
  
 
 #Physical neighbours
@@ -345,103 +393,175 @@ queen_nb_b <- nb2listw(poly2nb(ohlung,queen=TRUE),
 queen_nb_w <- nb2listw(poly2nb(ohlung,queen=TRUE), 
                        style="W",zero.policy = TRUE)
 
-```
 
-```{r bucle independiente}
-mat <- list(rook_nb_b,rook_nb_w,
-         queen_nb_b,queen_nb_w)
+#- Estructuras de vecindad basadas en distancia y grafos ----
+# convertir sf a sp
+xy_sp <- as(xy0, "Spatial") 
 
-aux <- numeric(0)
-for(i in 1:length(mat)){
-   aux[i]=moran.test(rowSums(
-  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry(),
-  na.rm = TRUE)/rowSums(
-  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry(),
-  na.rm = TRUE), mat[[i]], alternative="two.sided")$p.value
+#- vecinos por triangulación de Delaunay.---- 
+#Une puntos cercanos formando triángulos.
+trinb <- tri2nb(xy_sp)
+
+# Convierte esa vecindad en pesos:
+tri_nb_b <- nb2listw(tri2nb(xy_sp), style = "B", zero.policy = TRUE)
+tri_nb_w <- nb2listw(tri2nb(xy_sp), style = "W", zero.policy = TRUE)
+
+
+#- vecinos con el criterio Sphere of Influence.---- 
+#Parte de la triangulación y deja conexiones según cercanía/influencia entre puntos.
+soi_nb_b <- nb2listw(graph2nb(soi.graph(trinb, xy_sp)), style = "B", zero.policy = TRUE)
+soi_nb_w <- nb2listw(graph2nb(soi.graph(trinb, xy_sp)), style = "W", zero.policy = TRUE)
+
+
+
+#- Crea vecinos por vecino relativo.---- 
+#Conecta dos puntos si no hay un tercer punto “más cercano” que se interponga.
+
+relative_nb_b <- nb2listw(graph2nb(relativeneigh(xy_sp), sym = TRUE), style = "B", zero.policy = TRUE)
+relative_nb_w <- nb2listw(graph2nb(relativeneigh(xy_sp), sym = TRUE), style = "W", zero.policy = TRUE)
+
+
+##- Crea vecinos por grafo de Gabriel. ---- 
+# Conecta dos puntos si el círculo entre ellos no contiene otros puntos.
+gabriel_nb_b <- nb2listw(graph2nb(gabrielneigh(xy_sp), sym = TRUE), style = "B", zero.policy = TRUE)
+gabriel_nb_w <- nb2listw(graph2nb(gabrielneigh(xy_sp), sym = TRUE), style = "W", zero.policy = TRUE)
+
+##- Graficos vecindad basadas en distancia y grafos ----
+# Crear objetos nb
+trinb <- tri2nb(xy_sp)
+soinb <- graph2nb(soi.graph(trinb, xy_sp))
+gabrielnb <- graph2nb(gabrielneigh(xy_sp), sym = TRUE)
+relativenb <- graph2nb(relativeneigh(xy_sp), sym = TRUE)
+
+plot(st_geometry(ohlung), border = "gray")
+plot(trinb, coords, add = TRUE, col = "red")
+title("Delaunay")
+
+plot(st_geometry(ohlung), border = "gray")
+plot(soinb, coords, add = TRUE, col = "green")
+title("Sphere of Influence")
+
+plot(st_geometry(ohlung), border = "gray")
+plot(gabrielnb, coords, add = TRUE, col = "blue")
+title("Gabriel")
+
+plot(st_geometry(ohlung), border = "gray")
+plot(relativenb, coords, add = TRUE, col = "orange")
+title("Relative Neighbour")
+
+#- W por k vecinos más cercanos ----
+
+knn1_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 1)), style = "B", zero.policy = TRUE)
+knn1_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 1)), style = "W", zero.policy = TRUE)
+
+knn2_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 2)), style = "B", zero.policy = TRUE)
+knn2_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 2)), style = "W", zero.policy = TRUE)
+
+knn3_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 3)), style = "B", zero.policy = TRUE)
+knn3_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 3)), style = "W", zero.policy = TRUE)
+
+knn4_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 4)), style = "B", zero.policy = TRUE)
+knn4_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 4)), style = "W", zero.policy = TRUE)
+
+#- Graficos matrices k vecinos mas cercanos ----  
+# Crear nb (si no los tienes)
+knn1_nb <- knn2nb(knearneigh(xy_sp, k = 1))
+knn2_nb <- knn2nb(knearneigh(xy_sp, k = 2))
+knn3_nb <- knn2nb(knearneigh(xy_sp, k = 3))
+knn4_nb <- knn2nb(knearneigh(xy_sp, k = 4))
+
+plot(st_geometry(ohlung), border = "gray")
+plot(knn1_nb, coords, add = TRUE, col = "red")
+title("k = 1")
+
+plot(st_geometry(ohlung), border = "gray")
+plot(knn2_nb, coords, add = TRUE, col = "blue")
+title("k = 2")
+
+plot(st_geometry(ohlung), border = "gray")
+plot(knn3_nb, coords, add = TRUE, col = "green")
+title("k = 3")
+
+plot(st_geometry(ohlung), border = "gray")
+plot(knn4_nb, coords, add = TRUE, col = "orange")
+title("k = 4")
+
+
+#----------------------------------------------------------------
+
+#- Evaluación y selección de matrices de pesos espaciales ----
+
+# Crea lista de todas las matrices creadas
+mat <- list(
+  rook_nb_b, rook_nb_w,
+  queen_nb_b, queen_nb_w,
+  tri_nb_b, tri_nb_w,
+  soi_nb_b, soi_nb_w,
+  gabriel_nb_b, gabriel_nb_w,
+  relative_nb_b, relative_nb_w,
+  knn1_nb_b, knn1_nb_w,
+  knn2_nb_b, knn2_nb_w,
+  knn3_nb_b, knn3_nb_w,
+  knn4_nb_b, knn4_nb_w
+)
+
+
+# Nombre a cada elemto de la fila
+names(mat) <- c(
+  "rook_b", "rook_w",
+  "queen_b", "queen_w",
+  "tri_b", "tri_w",
+  "soi_b", "soi_w",
+  "gabriel_b", "gabriel_w",
+  "relative_b", "relative_w",
+  "knn1_b", "knn1_w",
+  "knn2_b", "knn2_w",
+  "knn3_b", "knn3_w",
+  "knn4_b", "knn4_w"
+)
+
+aux_p <- numeric(length(mat)) # Vector numérico vacío para los p-values 
+aux_I <- numeric(length(mat)) # Vector numérico vacío para los indiced e moran 
+
+# Recorre TODAS las matrices W y calcula Moran para cada una.
+for(i in seq_along(mat)){
+  test <- moran.test(ohlung$casos_totales88/ohlung$pop_total88, mat[[i]], alternative = "two.sided")
+  
+  aux_p[i] <- test$p.value
+  aux_I[i] <- test$estimate[1]   # Moran's I
 }
-which.min(aux)
-mat[[which.min(aux)]]
-moran.test(ohlung$casos_totales/ohlung$pop_total, mat[[which.min(aux)]], alternative="two.sided")
-```
-Con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la hipotesis nula, la cual habla sobre la independencia espacial.
 
 
-```{r correlacion sf, echo=FALSE, fig.height=7, fig.width=10, message=FALSE, warning=FALSE}
-numericas_sf <- ohlung %>% 
-  sf::st_drop_geometry() %>% 
-  dplyr::select(-c(COUNTYID,NAME,FIPSNO,RECORD_ID))
-y <- ohlung$casos_totales / ohlung$pop_total
-y_c <- y - mean(y)
 
-W <- listw2mat(queen_nb_w)
-n <- length(y)
-S0 <- sum(W)
+# Guardar el valor-p de cada matriz ordenado de menor a mayor
+resultados_w <- data.frame(
+  matriz = names(mat),
+  moran_I = aux_I,
+  p_value = aux_p
+)
 
-resultados <- data.frame()
 
-for (i in names(numericas_sf)) {
-  
-  x <- numericas_sf[[i]]
-  
-  # evitar NA
-  valid <- complete.cases(x, y)
-  x <- x[valid]
-  y_sub <- y[valid]
-  
-  x_c <- x - mean(x)
-  y_c <- y_sub - mean(y_sub)
-  
-  I_xy <- (n / S0) * (t(x_c) %*% W[valid, valid] %*% y_c) / 
-          sqrt(sum(x_c^2) * sum(y_c^2))
-  
-  resultados <- rbind(resultados,
-                      data.frame(variable = i,
-                                 Moran_bivariado = I_xy))
-}
-resultados <- resultados %>% desc(Moran_bivariado)
-kable(resultados,caption = "Correlación con la variable independiente")
+kableExtra::kable(resultados_w[order(resultados_w$p_value), ],
+      digits = 3)
+
 
 ```
+De acuerdo con la tabla, podemos ver en la mayoría (16 de 20) el valor p es menor al nivel de significancia ($\alpha=0.05$), por lo cual se rechaza la hipotesis nula de independencia espacial, lo cual evidencia correlación espacial en los datos, teniendo en cuenta que hubo casos específicos en los que no se rechaza esa hipótesis nula, puede entenderse como que no en todas las configuraciones la dependencia espacial es consistente.
 
-```{r}
-resultados2 <- data.frame()
-for (i in names(numericas_sf)) {
-  
-  x <- numericas_sf[[i]]
-  
-  # evitar NA
-  valid <- complete.cases(x, y)
-  x <- x[valid]
-  
-  x_c <- x - mean(x)
-   
-  I_xy <- (n / S0) * (t(x_c) %*% W[valid, valid] %*% x_c) / 
-          sum(x_c^2)
-  
-  resultados2 <- rbind(resultados,
-                      data.frame(variable = i,
-                                 Moran_bivariado = I_xy))
-}
-resultados2 <- resultado2s %>% desc(Moran_bivariado)
-kable(resultados2,caption = "Correlación con la variable independiente")
-```
+Por otro lado como en este caso estamos manejando condados (regiones) se deicidió optar por usar la matriz de pesos de vecindad por el criterio reina, ya que entre la matriz reina y torre, con pesos y binarias (en cada caso), la matriz de reina con pesos es la que tiene menor p valor.
+
+
 
 # Regresión poisson
 
 
 ## glm1
 ```{r glm1, echo=FALSE, fig.height=10, fig.width=10, warning=FALSE}
-glm1 <- glm(casos_totales~AREA+PERIMETER+LMW68+POPMW68+
-              LMB68+POPMB68+LM68+POPM68+LFW68+POPFW68+LFB68+
-              POPFB68+LF68+POPF68+LMW78+POPMW78+LMB78+
-              POPMB78+LM78+POPM78+LFW78+POPFW78+LFB78+
-              POPFB78+LF78+POPF78+LMW88+POPMW88+LMB88+POPMB88+LM88+
-              POPM88+LFW88+POPFW88+LFB88+POPFB88+LF88+POPF88+
-              offset(log(pop_total)),
+glm1 <- glm(casos_totales88~LMW68+LFW68+LMW78+LFW78+
+              offset(log(pop_total88)),
             data=ohlung,family = poisson(link = "log"))
 summary(glm1)
 check_model(glm1)
-#envelope(glm1, rep=100)
 ```
 Observamos que la variable *PERIMETER* no fue significativa, de igual manera parece ser que la raza tampoco es significativa.
 
