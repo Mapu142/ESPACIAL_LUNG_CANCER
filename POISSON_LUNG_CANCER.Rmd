@@ -15,13 +15,13 @@ institute: |
   
 output:
   # html_document:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    latex_engine: xelatex
-fontsize: 12pt
-geometry: margin=2.5cm
+#   pdf_document:
+#     toc: true
+#     toc_depth: 3
+#     number_sections: true
+#     latex_engine: xelatex
+# fontsize: 12pt
+# geometry: margin=2.5cm
 # bibliography: BiblioConsultoria1.bib
 ---
 
@@ -564,12 +564,9 @@ Lo que podemos destacar de la tabla es:
 #                   "tasa_black_88", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", "tasa_hombre_78",
 #                   "tasa_mujer_88", "tasa_hombre_88"
 #                   )   
-vars_interes <- c("tasa_88", "tasa_white_88", "tasa_black_88", 
+vars_interes <- c("tasa_white_88", "tasa_black_88", 
                   "tasa_hombre_88", "tasa_mujer_88", "casos_totales68", "casos_totales78", "casos_totales88",
-                  "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78",
-                   "tasa_white_88",
-                  "tasa_black_88",
-                  "tasa_mujer_88", "tasa_hombre_88"
+                  "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78"
                   )   
 
 matriz_cor <- cor(st_drop_geometry(ohlung[, vars_interes]), use = "complete.obs")
@@ -587,6 +584,10 @@ corrplot(matriz_cor,
          title = "\nRelación entre Tasas de Cáncer y Demografía",
          mar = c(0,0,1,0))
 
+numericas <- ohlung %>% dplyr::select(tasa_white_88, tasa_black_88, tasa_hombre_88,  tasa_mujer_88, casos_totales68, casos_totales78, casos_totales88,
+                  pop_total68, pop_total78, pop_total88, cambio_78_88, cambio_68_88, cambio_68_78) %>% 
+  sf::st_drop_geometry()
+pairs.panels(numericas)
 ```
 
 
@@ -814,13 +815,16 @@ Se evalúan cuatro tipos de estructuras:
 # rm(list = setdiff(ls(), c("ohlung", "casos_condado"))) 
 
 # Lista de variables candidatas para ponderar la matriz W
-vars_candidatas <- c("tasa_78", "tasa_68", "pop_total", "AREA", "PERIMETER", "LM88", "LF88")
+vars_candidatas <- c( "tasa_hombre_88", "tasa_white_88",
+                  "tasa_black_88", "casos_totales68", "casos_totales78", "casos_totales88",
+                  "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78"
+                  ) 
 
 #----------------------------------------------------------------
 # 2. Selección de Variable para Ponderación de W ----
 #----------------------------------------------------------------
 # Evaluamos cuál variable tiene mayor correlación con Y para la ponderación
-cor_resultados <- cor(ohlung$tasa_88, st_drop_geometry(ohlung[, vars_candidatas]), 
+cor_resultados <- cor(ohlung$tasa_mujer_88, st_drop_geometry(ohlung[, vars_candidatas]), 
                       use = "complete.obs") %>% 
                   as.data.frame() %>% 
                   pivot_longer(everything(), names_to = "Variable", values_to = "Correlacion")
@@ -869,7 +873,7 @@ matrices_list$Variable_Weight <- mat2listw(w_attr, style = "W")
 eval_moran <- data.frame(Matriz = names(matrices_list), Moran_I = NA, p_valor = NA)
 
 for(i in seq_along(matrices_list)) {
-  test <- moran.test(ohlung$tasa_88, matrices_list[[i]], alternative = "two.sided", zero.policy = TRUE)
+  test <- moran.test(ohlung$tasa_mujer_88, matrices_list[[i]], alternative = "two.sided", zero.policy = TRUE)
   eval_moran$Moran_I[i]  <- test$estimate
   eval_moran$p_valor[i]  <- test$p.value
 }
@@ -878,9 +882,11 @@ for(i in seq_along(matrices_list)) {
 eval_moran[order(eval_moran$p_valor), ]
 
 
-W_seleccionada <- matrices_list$KNN8
+W_seleccionada <- matrices_list$Variable_Weight
 coords <- st_coordinates(st_centroid(ohlung))
-nb_knn8 <- knn2nb(knearneigh(coords, k = 8))
+#. Extraer la lista de vecinos desde el objeto listw
+nb_atributo <- W_seleccionada$neighbours
+# summary(nb_atributo)
 
 ```
 
@@ -891,13 +897,15 @@ A continuación se presentan los mapas de clústeres LISA utilizando tanto la ma
 
 ```{r Indice de Moran, echo=FALSE, message=FALSE, warning=FALSE}
 #Pruebas de autocorrelación con indice de moran
-moran.test(ohlung$tasa_88, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+moran.test(ohlung$tasa_mujer_88, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 ```
+
+El Test de Moran Global confirma la existencia de una fuerte autocorrelación espacial positiva en la tasa de cáncer de pulmón en mujeres para 1988 (I = 0.258; p-valor < 0.0001). Este resultado demuestra que la enfermedad no se distribuye de forma aleatoria en Ohio, sino que forma clústeres significativos. La intensidad de este índice, mayor a la observada en otros grupos demográficos, sugiere que los factores de riesgo subyacentes tienen una marcada estructura geoespacial o socio-ambiental.
 
 ```{r mapa_lisa, echo=FALSE, message=FALSE, warning=FALSE}
 
 # 1. Calculamos el Moran Local usando la matriz ganadora (KNN7)
-local_moran <- localmoran(ohlung$tasa_88, W_seleccionada, zero.policy = TRUE)
+local_moran <- localmoran(ohlung$tasa_mujer_88, W_seleccionada, zero.policy = TRUE)
 
 # Dividimos el área gráfica en 1 fila y 2 columnas
 grid.newpage()
@@ -906,7 +914,7 @@ pushViewport(viewport(layout = grid.layout(1, 2)))
 
 print_moran_plot <- function() {
   par(mar = c(5, 4, 4, 1), new = FALSE)
-  mp <- moran.plot(ohlung$tasa_88, W_seleccionada, 
+  mp <- moran.plot(ohlung$tasa_mujer_88, W_seleccionada, 
          labels = as.character(ohlung$NAME), 
          pch = 19, 
          col = "black",          # Puntos normales en negro
@@ -939,8 +947,8 @@ ohlung$moran_i <- local_moran[,1]     # Índice de Moran local
 ohlung$p_valor <- local_moran[,5]     # P-valor del test local
 
 # 3. Escalar la variable para identificar los cuadrantes (Alto-Alto, Bajo-Bajo, etc.)
-tasa_scale <- scale(ohlung$tasa_88)
-lag_scale <- scale(lag.listw(W_seleccionada, ohlung$tasa_88))
+tasa_scale <- scale(ohlung$tasa_mujer_88)
+lag_scale <- scale(lag.listw(W_seleccionada, ohlung$tasa_mujer_88))
 
 # 4. Crear las categorías de los clústeres
 ohlung$cluster <- "No Significativo"
@@ -968,7 +976,7 @@ mapa_lisa <- tm_shape(ohlung) +
   tm_text("etiqueta_lisa", size = 0.6, col = "black", remove.overlap = TRUE) +
   tm_layout(main.title = "B. Mapa de Clústeres (LISA)",
             main.title.size = 1,
-            legend.position = c("left", "bottom"),
+            # legend.position = c("left", "bottom"),
             legend.title.size = 0.8,
             legend.text.size = 0.6,
             frame = FALSE)
@@ -1006,13 +1014,15 @@ par(mfrow = c(1, 2), mar = c(0, 0, 1, 0))
 plot(st_geometry(ohlung), border = "grey", main = "Contigüidad Reina")
 plot(nb_q, coords, add = TRUE, col = "blue", lwd = 0.5)
 
-plot(st_geometry(ohlung), border = "grey", main = "K-Vecinos (k=8)")
+plot(st_geometry(ohlung), border = "grey", main = "Ponderada por tasa_mujer_88")
 plot(W_seleccionada, coords, add = TRUE, col = "red", lwd = 0.5)
 
 # # 3. Métricas de conectividad
 # cat("Promedio de vecinos Reina:", mean(card(nb_q)), "\n")
 # cat("Promedio de vecinos KNN8:", mean(card(W_seleccionada$neighbours)), "\n")
 ```
+
+La imagen presenta una comparativa de dos estructuras de conectividad espacial para los condados de Ohio. El mapa de la izquierda, denominado "Contigüidad Reina", muestra una red de conexiones basada en la vecindad física, resultando en una malla local y dispersa. Por el contrario, el mapa de la derecha, la matriz W ponderada por tasa_white_88 , exhibe una red en rojo densamente conectada que vincula a todos los condados entre sí basándose en la similitud (menos interpretable).
 
 ## 2. Diagrama de Dispersión de Moran (Moran Scatterplot)
 Este gráfico visualiza la relación entre el valor de la tasa en un condado ($z_i$) y el promedio ponderado de sus vecinos ($\sum c_{ij}z_j$).
@@ -1021,22 +1031,22 @@ Este gráfico visualiza la relación entre el valor de la tasa en un condado ($z
 
 ```{r moran_scatterplot, echo=FALSE}
 # Nota: moran.plot dibuja automáticamente las líneas de los promedios (cuadrantes)
-moran.plot(ohlung$tasa_88, W_seleccionada, 
+moran.plot(ohlung$tasa_mujer_88, W_seleccionada, 
          labels = as.character(ohlung$NAME), 
          pch = 19, 
          col = "black",          # Puntos normales en negro
          bg = "red",             # Puntos influyentes en rojo
          xlab = "Tasa de Cáncer 1988", 
-         ylab = "Tasa Rezagada (Promedio Vecinos KNN8)",
+         ylab = "Tasa Rezagada (Promedio Vecinos Ponderado)",
          main = "Dispersograma de Moran: Cáncer de Pulmón en Ohio (1988)",
          las = 1, 
          cex = 0.7)
 
 # Usamos 'bg' para resaltar los resultados estadísticos
 legend("bottomright", 
-       legend = c("I de Moran: 0.1548", 
-                  "Valor P:    0.00065",
-                  "Matriz:     KNN8"), 
+       legend = c("I de Moran: ", 
+                  "Valor P:    ",
+                  "Matriz:     "), 
        cex = 0.9,
        bg = "#D5F5E3", # Un verde claro profesional
        box.col = "darkgreen",
@@ -1046,28 +1056,73 @@ mtext("Cuadrantes: Superior-Derecha (Alto-Alto), Inferior-Izquierda (Bajo-Bajo)"
       side = 3, line = -1.0, cex = 0.7, adj = 0.02, col = "darkblue")
 ```
 
-El diagrama de dispersión de Moran muestra una relación lineal positiva, ratificando la existencia de autocorrelación espacial. Se identifican condados como Monroe y Jefferson en el cuadrante Alto-Alto, actuando como núcleos de los clústeres de alta incidencia. Por el contrario, condados como Noble actúan como outliers espaciales, presentando tasas significativamente menores que el promedio de sus vecinos.
+El dispersograma de Moran para 1988 confirma la existencia de un clúster espacial positivo. La concentración de condados en el cuadrante "Alto-Alto" (como Belmont y Jefferson) evidencia la persistencia de focos de alta incidencia, mientras que condados como Henry y Wayne consolidan zonas de baja tasa en el cuadrante "Bajo-Bajo". La significancia estadística (p = ) respalda la validez de estos agrupamientos espaciales.
 
 ## 3. Exploración de Promedios Móviles Espaciales
 La matriz $W$ actúa como un **operador de rezago espacial**. Al calcular el promedio ponderado de los vecinos, suavizamos la variable para detectar tendencias regionales de largo alcance en lugar de ruido local.
 
 ```{r promedios_moviles, echo=FALSE, message=FALSE, warning=FALSE}
-# Calcular el rezago espacial (promedio móvil)
-ohlung$tasa_lag88 <- lag.listw(W_seleccionada, ohlung$tasa_88)
+# # Calcular el rezago espacial (promedio móvil)
+ohlung$tasa_lag_mujer88 <- lag.listw(W_seleccionada, ohlung$tasa_mujer_88)
 
-# Comparar mapa original vs suavizado
-tmap_arrange(
-  tm_shape(ohlung) + tm_polygons("tasa_88", title = "Tasa Original", palette = "Reds"),
-  tm_shape(ohlung) + tm_polygons("tasa_lag88", title = "Promedio Móvil (KNN8)", palette = "Reds")
-)
+# # Comparar mapa original vs suavizado
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_polygons("tasa_mujer_88", title = "Tasa Original", palette = "Reds"),
+#   tm_shape(ohlung) + tm_polygons("tasa_lag_mujer88", title = "Promedio Móvil (ponderado por tasa_white_88)", palette = "Reds")
+# )
+
+### Gráfico en misma escala
+# 1. ENCONTRAR EL RANGO TOTAL AUTOMÁTICAMENTE
+# Unimos la tasa original y el lag para que la escala sea idéntica
+rango_suavizado <- c(ohlung$tasa_mujer_88, ohlung$tasa_lag_mujer88)
+
+# 2. DEFINIR LOS CORTES (Escala unificada usando Fisher para detectar clústeres)
+# Usamos un mapa temporal para extraer los cortes óptimos de todo el rango
+cortes_unificados <- classInt::classIntervals(rango_suavizado, n = 6, style = "fisher")$brks
+
+# 3. FUNCIÓN PARA LOS MAPAS DE SUAVIZADO
+crear_mapa_suave <- function(variable, titulo) {
+  tm_shape(ohlung) + 
+    tm_polygons(variable, 
+                palette = "Reds",
+                breaks = cortes_unificados, # Forzamos la misma escala en ambos
+                border.col = "white",
+                lwd = 0.5) + 
+    tm_layout(main.title = titulo, 
+              main.title.size = 0.9, 
+              main.title.position = "center",
+              legend.show = FALSE,
+              frame = FALSE)
+}
+
+# 4. CREAR LOS DOS MAPAS
+m_original <- crear_mapa_suave("tasa_mujer_88", "Tasa Mujer 88 (Original)")
+m_suavizado <- crear_mapa_suave("tasa_lag_mujer88", "Tasa Suavizada (Lag)")
+
+# 5. LEYENDA UNIFICADA
+leyenda_suave <- tm_shape(ohlung) + 
+  tm_polygons("tasa_mujer_88", palette = "Reds", 
+              breaks = cortes_unificados,
+              title = "Escala de Tasa\n(Casos/Población)",
+              border.col = "white") + 
+  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
+
+# 6. RESULTADO LADO A LADO
+# Usamos 1 fila y 3 columnas (Mapa 1, Mapa 2 y Leyenda)
+tmap_arrange(m_original, m_suavizado, leyenda_suave, 
+             nrow = 1, ncol = 3, asp = 0)
+
+
 ```
+
+La comparación bajo una escala unificada demuestra que, al eliminar el ruido estadístico local mediante el rezago espacial (Lag), persiste una estructura regional de alta incidencia de cáncer de pulmón en mujeres en el sudeste de Ohio. 
 
 ## 4. Análisis de Eigenvectores (MESF/MEM)
 La técnica **MESF** filtra la autocorrelación de los residuales y la transfiere al intercepto del modelo. Los eigenvectores representan patrones de mapas: los de valores propios altos muestran gradientes globales, mientras que los bajos muestran contrastes locales.
 
 ```{r mesf_analysis, echo=FALSE, message=FALSE, warning=FALSE}
 # 1. Matriz de conectividad binaria C
-C_mat <- nb2mat(nb_knn8, style = "B")
+C_mat <- nb2mat(nb_atributo, style = "B")
 
 # 2. Operador de proyección de Moran (M)
 n <- nrow(ohlung)
@@ -1086,34 +1141,36 @@ colnames(EV_validos) <- paste0("EV", 1:ncol(EV_validos))
 ohlung$EV1 <- EV_validos$EV1
 tm_shape(ohlung) + tm_polygons("EV1", palette = "RdYlGn", title = "Eigenvector 1 (Gradiente Principal)")
 ```
+Cuando utilizas una matriz de conectividad basada en Atributos (nb_atributo) donde casi todos los condados están conectados entre sí con pesos muy similares, la eigendecomposición "colapsa". En lugar de un gradiente suave (que es lo que buscamos), obtienes un eigenvector que solo resalta un valor atípico (outlier) y deja al resto como una masa uniforme. Esto no sirve para modelar la estructura espacial. 
+(en este caso con esta W no sirve hacer MESF/MEM)
+
+
 
 ## 5. Pruebas de Diagnóstico para Selección del Modelo (LM Tests)
 Para decidir si la dependencia espacial debe modelarse en la **variable dependiente** (Modelo de Rezago/Lag) o en los **términos de error** (Modelo de Error), utilizamos los Tests del Multiplicador de Lagrange sobre un modelo base de Mínimos Cuadrados.
 
-```{r lm_tests, eval=FALSE, include=FALSE}
+```{r lm_tests, echo=FALSE}
 # 1. Cargamos la librería para la selección
 library(MASS)
 library(glmnet)
 
 # 2. Ajustamos el modelo completo (el que tiene todas las variables)
 # Nota: R gestionará automáticamente las variables redundantes
-mco_completo <- lm(tasa_88 ~ AREA + PERIMETER + tasa_white_68 + 
-                 tasa_black_68 + tasa_white_78 + tasa_white_78  + 
-                 tasa_mujer_68 + tasa_hombre_68 + tasa_mujer_78 + 
-                 tasa_hombre_78 + casos_totales68 + casos_totales78 + 
-                 pop_total68 + pop_total78 + tasa_68 + tasa_78 + 
-                  cambio_68_78, 
+mco_completo <- lm(tasa_mujer_88 ~   tasa_black_88  + tasa_88 +
+                    tasa_hombre_88    ,
                data = ohlung)
+
+
 
 # 3. Selección automática de variables (Stepwise)
 # 'direction = "both"' quita y pone variables hasta encontrar el mejor AIC
 mco_final <- stepAIC(mco_completo, direction = "both", trace = FALSE)
 
 # 4. Presentar el resumen del modelo seleccionado
-summary(mco_final)
+summary(mco_completo)
 
 # 5. Diagnóstico de autocorrelación espacial para el modelo seleccionado
-lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+lm.morantest(mco_completo, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 
 
 
@@ -1121,17 +1178,15 @@ lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy =
 
 # 2. Preparar los datos (Lasso requiere matrices, no data.frames)
 # Seleccionamos las columnas numéricas que quieres evaluar
-columnas_x <- c("AREA", "PERIMETER", "tasa_white_68", "tasa_black_68", "tasa_white_78", 
-                "tasa_black_78", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", 
-                "tasa_hombre_78", "casos_totales68", "casos_totales78", 
-                "pop_total68", "pop_total78", "tasa_68", "tasa_78", 
-                "cambio_68_78")
+columnas_x <- c("tasa_black_88", 
+                  "tasa_hombre_88", "casos_totales68", "casos_totales78", "casos_totales88",
+                  "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78")
 
 # Creamos la matriz X (predictores) y el vector Y (respuesta)
 # Eliminamos filas con NA si las hubiera
-datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_88", columnas_x)])
+datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_mujer_88", columnas_x)])
 x <- as.matrix(datos_limpios[, -1])
-y <- datos_limpios$tasa_88
+y <- datos_limpios$tasa_mujer_88
 
 # 3. Ajustar el modelo Lasso con Validación Cruzada para encontrar el mejor 'lambda'
 lasso_cv <- cv.glmnet(x, y, alpha = 1) # alpha = 1 es Lasso
@@ -1148,7 +1203,7 @@ plot(lasso_cv)
 
 
 # 1. Asegurarnos de usar la nueva función lm.RStests
-diagnostico_espacial <- lm.RStests(mco_final, W_seleccionada, test = "all", zero.policy = TRUE)
+diagnostico_espacial <- lm.RStests(mco_completo, W_seleccionada, test = "all", zero.policy = TRUE)
 
 # 2. Mostrar los resultados
 print(diagnostico_espacial)
