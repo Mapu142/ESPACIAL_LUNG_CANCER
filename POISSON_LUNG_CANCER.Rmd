@@ -26,6 +26,7 @@ library(tseries) # para pruebas de rachas
 library(spdep) # para función poly2nb en vecindad criterio queen
 library(tmap) #para graficar mapa
 library(grid) # para mapa lisa
+library(spatialreg) # para rezagar variables
 ```
 # Introducción {#PrInv}
 
@@ -146,9 +147,16 @@ ohlung_long %>%
 ```
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
+```{r include=FALSE}
+ohlung$tasa_white_68 <- rowSums(ohlung[,c('LMW68','LFW68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW68','POPFW68')]%>% sf::st_drop_geometry()) 
+ohlung$tasa_black_68 <- rowSums(ohlung[,c('LMB68','LFB68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB68','POPFB68')]%>% sf::st_drop_geometry()) 
 
+ohlung$tasa_white_78 <- rowSums(ohlung[,c('LMW78','LFW78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW78','POPFW78')]%>% sf::st_drop_geometry()) 
+ohlung$tasa_black_78 <- rowSums(ohlung[,c('LMB78','LFB78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB78','POPFB78')]%>% sf::st_drop_geometry()) 
 
-
+ohlung$tasa_white_88 <- rowSums(ohlung[,c('LMW88','LFW88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW88','POPFW88')]%>% sf::st_drop_geometry()) 
+ohlung$tasa_black_88 <- rowSums(ohlung[,c('LMB88','LFB88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB88','POPFB88')]%>% sf::st_drop_geometry()) 
+```
 
 
 
@@ -257,17 +265,6 @@ tmap_arrange(
 ```
 En este se realizó una diferencia de las tasas en los años, tal diferencia significa que si es positiva quiere decir que aumento, y si es negativa quiere decir que disminuyó. Podemos ver que comparando las tasas de los años de 1968 y 1988, casi no hay tasas negativas, lo que indica que en general entre 1968 y 1988 hubo un aumento de casos de cancer de pulmón. Por otro lado comparando los años 1968 y 1978, podemos ver más condados con tasas negativas, lo que indica que hubo una disminución, esto es importante porque si bien vimos en el anterior mapa que la tasa aumentaba conforme los años, no quiere decir que en todos los contados hubo un aumento. Por último entre los años 1978 y 1988 podemos ver que fueron más constantes las tasas, es decir que no hubo un aumento  signficativo en la mayoría de condados (resaltados por el verde claro), además tambien podemos ver que hay tasas que siguieron disminuyendo (morado).
 
-
-```{r include=FALSE}
-ohlung$tasa_white_68 <- rowSums(ohlung[,c('LMW68','LFW68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW68','POPFW68')]%>% sf::st_drop_geometry()) 
-ohlung$tasa_black_68 <- rowSums(ohlung[,c('LMB68','LFB68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB68','POPFB68')]%>% sf::st_drop_geometry()) 
-
-ohlung$tasa_white_78 <- rowSums(ohlung[,c('LMW78','LFW78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW78','POPFW78')]%>% sf::st_drop_geometry()) 
-ohlung$tasa_black_78 <- rowSums(ohlung[,c('LMB78','LFB78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB78','POPFB78')]%>% sf::st_drop_geometry()) 
-
-ohlung$tasa_white_88 <- rowSums(ohlung[,c('LMW88','LFW88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW88','POPFW88')]%>% sf::st_drop_geometry()) 
-ohlung$tasa_black_88 <- rowSums(ohlung[,c('LMB88','LFB88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB88','POPFB88')]%>% sf::st_drop_geometry()) 
-```
 
 ```{r}
 tmap_arrange(
@@ -760,98 +757,7 @@ tmap_arrange(
 )
 ```
 
-## 4. Análisis de Eigenvectores (MESF/MEM)
-La técnica **MESF** filtra la autocorrelación de los residuales y la transfiere al intercepto del modelo. Los eigenvectores representan patrones de mapas: los de valores propios altos muestran gradientes globales, mientras que los bajos muestran contrastes locales.
 
-```{r mesf_analysis, message=FALSE, warning=FALSE}
-# 1. Matriz de conectividad binaria C
-C_mat <- nb2mat(nb_knn8, style = "B")
-
-# 2. Operador de proyección de Moran (M)
-n <- nrow(ohlung)
-I <- diag(n)
-M <- I - matrix(1, n, n)/n
-MBM <- M %*% C_mat %*% M
-
-# 3. Eigendecomposición
-eig <- eigen(MBM, symmetric = TRUE)
-# Filtrar eigenvectores con MC/MCmax > 0.25 (umbral Griffith)
-umbral <- 0.25
-EV_validos <- as.data.frame(eig$vectors[, eig$values / max(eig$values) > umbral])
-colnames(EV_validos) <- paste0("EV", 1:ncol(EV_validos))
-
-# Visualizar el primer eigenvector (Patrón de máxima autocorrelación positiva)
-ohlung$EV1 <- EV_validos$EV1
-tm_shape(ohlung) + tm_polygons("EV1", palette = "RdYlGn", title = "Eigenvector 1 (Gradiente Principal)")
-```
-
-## 5. Pruebas de Diagnóstico para Selección del Modelo (LM Tests)
-Para decidir si la dependencia espacial debe modelarse en la **variable dependiente** (Modelo de Rezago/Lag) o en los **términos de error** (Modelo de Error), utilizamos los Tests del Multiplicador de Lagrange sobre un modelo base de Mínimos Cuadrados.
-
-```{r lm_tests, eval=FALSE, include=FALSE}
-# 1. Cargamos la librería para la selección
-library(MASS)
-library(glmnet)
-
-
-# 2. Preparar los datos (Lasso requiere matrices, no data.frames)
-# Seleccionamos las columnas numéricas que quieres evaluar
-columnas_x <- c("AREA", "PERIMETER", "tasa_white_68", "tasa_black_68", "tasa_white_78", 
-                "tasa_black_78", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", 
-                "tasa_hombre_78", "casos_totales68", "casos_totales78", 
-                "pop_total68", "pop_total78", "tasa_68", "tasa_78", 
-                "cambio_68_78")
-
-# Creamos la matriz X (predictores) y el vector Y (respuesta)
-# Eliminamos filas con NA si las hubiera
-datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_88", columnas_x)])
-x <- as.matrix(datos_limpios[, -1])
-y <- datos_limpios$tasa_88
-
-# 3. Ajustar el modelo Lasso con Validación Cruzada para encontrar el mejor 'lambda'
-lasso_cv <- cv.glmnet(x, y, alpha = 1) # alpha = 1 es Lasso
-
-# 4. Ver los coeficientes seleccionados
-# Buscamos el lambda que da el menor error
-coeficientes_finales <- coef(lasso_cv, s = "lambda.min")
-print(coeficientes_finales)
-
-# 5. Visualizar la importancia de las variables
-plot(lasso_cv)
-
-
-
-
-# 1. Asegurarnos de usar la nueva función lm.RStests
-diagnostico_espacial <- lm.RStests(mco_final, knn8_nb_w, test = "all", zero.policy = TRUE)
-
-# 2. Mostrar los resultados
-print(diagnostico_espacial)
-
-```
-
-Este resultado es muy interesante porque contradice lo que parecía un modelo "limpio" y revela una estructura espacial oculta que solo las pruebas robustas logran detectar.
-
-### Las Pruebas Simples (RSerr y RSlag)
-
-* RSerr (Error): Tiene un p-valor de 0.7663. No es significativo.
-
-* RSlag (Lag): Tiene un p-valor de 0.0622. Está muy cerca del límite (0.05), pero técnicamente no es significativo al 5%.
-
-
-### Las Pruebas Robustas (¡Las que mandan aquí!)
-Cuando las pruebas simples fallan o son dudosas, miramos las ajustadas/robustas (adjRS). Estas pruebas controlan por la posible presencia de ambos tipos de dependencia espacial al mismo tiempo.
-
-* adjRSerr (p = 0.0060): Muy significativo.
-* adjRSlag (p = 0.0009): Extremadamente significativo.
-
-A veces, un tipo de dependencia espacial (lag) "enmascara" a la otra (error). Las pruebas robustas limpian ese efecto mutuo.
-
-Para elegir el modelo seguimos la regla de decisión de Anselin:
-
-  Si ambas pruebas robustas son significativas (como ocurre aquí), elegimos la que tenga el p-valor más pequeño o el estadístico más alto: adjRSlag ($p = 0.0009$) es mucho más pequeño que adjRSerr ($p = 0.0060$)  un Modelo de Retardo Espacial (Spatial Lag Model - SAR).
-  
-Esto indica que, incluso después de controlar por población, raza y tasas históricas, la tasa de cáncer de un municipio sí está influenciada directamente por las tasas de sus vecinos. Existe un efecto de "derrame" o contagio espacial (spillover) que el modelo MCO no estaba captando.
 
 
 # Regresión poisson
@@ -1085,7 +991,7 @@ Se ve en el histograma un comportamiento bimodal, y en el qqplot podemos observa
 
 Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
 
-```{r normalidad prueba dglm_media}
+```{r normalidad prueba dglm_dispersion}
 shapiro.test(residuals(dglm_model$dispersion.fit))
 ```
 Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
@@ -1132,7 +1038,7 @@ acf(residuals(modelo_glmer))
 
 Parecen haber algunas correlaciones entre los residuales.
 
-```{r efecto aleatorio, fig.height=7, fig.width=10}
+```{r  residuales efecto aleatorio, fig.height=7, fig.width=10}
 sim <- simulateResiduals(modelo_glmer)
 plot(sim)
 testResiduals(sim)
@@ -1197,7 +1103,7 @@ acf(residuals(bnglm), main = "ACF de los residuales", col = "blue", lwd = 2)
 
 El correlograma muestra una leve señal de correlación en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
 
-```{r independencia glm1}
+```{r independencia bnglm}
 dwtest(bnglm)
 ```
 Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
@@ -1209,7 +1115,7 @@ moran.test(residuals(bnglm), listw = knn8_nb_w)
 
 ### *Normalidad*
 
-```{r graficos normales glm1}
+```{r graficos normales bnglm}
 hist(residuals(bnglm),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
 qqnorm(residuals(bnglm), main = "QQ-Plot de los residuales")
 qqline(residuals(bnglm), col = "red", lwd = 2)
@@ -1219,7 +1125,7 @@ En el histograma podemos ver aproximadamente una distribución simétrica alrede
 
 Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
 
-```{r normalidad prueba glm1}
+```{r normalidad prueba bnglm}
 shapiro.test(residuals(bnglm))
 ```
 De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
@@ -1229,7 +1135,7 @@ De este modo confirmamos que la normalidad se rechaza con un p valor menor al ni
 
 Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
 
-```{r breusch-pagan glm1, echo=FALSE, message=FALSE, warning=FALSE}
+```{r breusch-pagan bnglm, echo=FALSE, message=FALSE, warning=FALSE}
 bptest(bnglm)
 
 ```
@@ -1268,7 +1174,7 @@ testResiduals(sim)
 Se decidió realizar una prueba de rachas 
 
 
-```{r rachas efecto aleatorio}
+```{r bn rachas efecto aleatorio}
 runs.test(factor(residuals(nbea) > 0))
 ```
 Como el p valor obtuvo un valor mayor al nivel de significancia, no se rechaza $H_0:$ los residuales son independientes.
@@ -1298,22 +1204,175 @@ Como el p valor es menor al nivel de significancia ($\alpha=0.05$), se rechaza $
 ### *Homocedasticidad*
 
 
-```{r efecto aleatorio, echo=FALSE, message=FALSE, warning=FALSE}
+```{r homo bn efecto aleatorio, echo=FALSE, message=FALSE, warning=FALSE}
 sim_res <- simulateResiduals(nbea)
 plot(sim_res)
 
 ```
 
-# Regresión espacial
+## 4. Análisis de Eigenvectores (MESF/MEM)
+La técnica **MESF** filtra la autocorrelación de los residuales y la transfiere al intercepto del modelo. Los eigenvectores representan patrones de mapas: los de valores propios altos muestran gradientes globales, mientras que los bajos muestran contrastes locales.
 
-```{r ohlung sf}
-ohlung_sf <- sf::read_sf("ohiolung/ohlung.shp")
+```{r mesf_analysis, message=FALSE, warning=FALSE}
+# 1. Matriz de conectividad binaria C
+C_mat <- listw2mat(knn8_nb_w)
 
-rook_nb <- nb2listw(poly2nb(ohlung_sf,queen=FALSE), 
-                    style="W",zero.policy = TRUE)
+# 2. Operador de proyección de Moran (M)
+n <- nrow(ohlung)
+I <- diag(n)
+M <- I - matrix(1, n, n)/n
+MBM <- M %*% C_mat %*% M
+
+# 3. Eigendecomposición
+eig <- eigen(MBM, symmetric = TRUE)
+# Filtrar eigenvectores con MC/MCmax > 0.25 (umbral Griffith)
+umbral <- 0.25
+EV_validos <- as.data.frame(eig$vectors[, eig$values / max(eig$values) > umbral])
+colnames(EV_validos) <- paste0("EV", 1:ncol(EV_validos))
+
+# Visualizar el primer eigenvector (Patrón de máxima autocorrelación positiva)
+ohlung$EV1 <- EV_validos$EV1
+tmap::tmap_mode("plot")
+tm_shape(ohlung) + tm_polygons("EV1", palette = "RdYlGn", title = "Eigenvector 1 (Gradiente Principal)")
 ```
 
-# Modelado Espacial de Cáncer de Pulmón (1988)
+## 5. Pruebas de Diagnóstico para Selección del Modelo (LM Tests)
+Para decidir si la dependencia espacial debe modelarse en la **variable dependiente** (Modelo de Rezago/Lag) o en los **términos de error** (Modelo de Error), utilizamos los Tests del Multiplicador de Lagrange sobre un modelo base de Mínimos Cuadrados.
 
+```{r lm_tests, eval=FALSE, include=FALSE}
+# 1. Cargamos la librería para la selección
+library(MASS)
+library(glmnet)
+
+
+# 2. Preparar los datos (Lasso requiere matrices, no data.frames)
+# Seleccionamos las columnas numéricas que quieres evaluar
+columnas_x <- c("AREA", "PERIMETER", "tasa_white_68", "tasa_black_68", "tasa_white_78", 
+                "tasa_black_78", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", 
+                "tasa_hombre_78", "casos_totales68", "casos_totales78", 
+                "pop_total68", "pop_total78", "tasa_68", "tasa_78", 
+                "cambio_68_78")
+
+# Creamos la matriz X (predictores) y el vector Y (respuesta)
+# Eliminamos filas con NA si las hubiera
+datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_88", columnas_x)])
+x <- as.matrix(datos_limpios[, -1])
+y <- datos_limpios$tasa_88
+
+# 3. Ajustar el modelo Lasso con Validación Cruzada para encontrar el mejor 'lambda'
+lasso_cv <- cv.glmnet(x, y, alpha = 1) # alpha = 1 es Lasso
+
+# 4. Ver los coeficientes seleccionados
+# Buscamos el lambda que da el menor error
+coeficientes_finales <- coef(lasso_cv, s = "lambda.min")
+print(coeficientes_finales)
+
+# 5. Visualizar la importancia de las variables
+plot(lasso_cv)
+
+
+
+
+# 1. Asegurarnos de usar la nueva función lm.RStests
+diagnostico_espacial <- lm.RStests(mco_final, knn8_nb_w, test = "all", zero.policy = TRUE)
+
+# 2. Mostrar los resultados
+print(diagnostico_espacial)
+
+```
+
+Este resultado es muy interesante porque contradice lo que parecía un modelo "limpio" y revela una estructura espacial oculta que solo las pruebas robustas logran detectar.
+
+### Las Pruebas Simples (RSerr y RSlag)
+
+* RSerr (Error): Tiene un p-valor de 0.7663. No es significativo.
+
+* RSlag (Lag): Tiene un p-valor de 0.0622. Está muy cerca del límite (0.05), pero técnicamente no es significativo al 5%.
+
+
+### Las Pruebas Robustas (¡Las que mandan aquí!)
+Cuando las pruebas simples fallan o son dudosas, miramos las ajustadas/robustas (adjRS). Estas pruebas controlan por la posible presencia de ambos tipos de dependencia espacial al mismo tiempo.
+
+* adjRSerr (p = 0.0060): Muy significativo.
+* adjRSlag (p = 0.0009): Extremadamente significativo.
+
+A veces, un tipo de dependencia espacial (lag) "enmascara" a la otra (error). Las pruebas robustas limpian ese efecto mutuo.
+
+Para elegir el modelo seguimos la regla de decisión de Anselin:
+
+  Si ambas pruebas robustas son significativas (como ocurre aquí), elegimos la que tenga el p-valor más pequeño o el estadístico más alto: adjRSlag ($p = 0.0009$) es mucho más pequeño que adjRSerr ($p = 0.0060$)  un Modelo de Retardo Espacial (Spatial Lag Model - SAR).
+  
+Esto indica que, incluso después de controlar por población, raza y tasas históricas, la tasa de cáncer de un municipio sí está influenciada directamente por las tasas de sus vecinos. Existe un efecto de "derrame" o contagio espacial (spillover) que el modelo MCO no estaba captando.
+
+# Regresión espacial
+
+Una conclusión que podemos ver es que tenemos sobredispersión, sin embargo no tenemos conteos iguales a 0 ya que manejamos los totales de casos por condado, por año.
+
+## SLX
+
+```{r include=FALSE}
+# rezagamos las variables
+X <- ohlung[,c('LMW68','LMW78','LFW68','LFW78')] %>% sf::st_drop_geometry()
+WX_queen <- create_WX(X, queen_nb_w)
+WX_knn8 <- create_WX(X,knn8_nb_w)
+colnames(WX_queen) <- c('lag_LMW68','lag_LMW78','lag_LFW68','lag_LFW78')
+colnames(WX_knn8) <- c('lag_LMW68','lag_LMW78','lag_LFW68','lag_LFW78')
+data_ext_queen <- cbind(ohlung, WX_queen)
+data_ext_knn8 <- cbind(ohlung, WX_knn8)
+
+
+```
+
+```{r modelos espaciales queen y knn8}
+glmLSX_queen <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
+                      lag_LMW68+lag_LMW78+lag_LFW68+lag_LFW78+
+              offset(log(pop_total88)),
+            data=data_ext_queen,family = poisson(link = "log"))
+glmLSX_knn8 <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
+                     lag_LMW68+lag_LMW78+lag_LFW68+lag_LFW78+
+              offset(log(pop_total88)),
+            data=data_ext_knn8,family = poisson(link = "log"))
+anova(glmLSX_queen,glmLSX_knn8)
+summary(glmLSX_queen)
+summary(glmLSX_knn8)
+```
+
+```{r mroan para queen y knn8}
+moran.test(residuals(glmLSX_queen), listw = queen_nb_w)
+moran.test(residuals(glmLSX_knn8), listw = knn8_nb_w)
+
+```
+## Modelo Lag
+
+```{r creacion rezagos en Y, include=FALSE}
+# variable respuesta rezagada
+Y <- ohlung[,c("casos_totales88","pop_total88")] %>% sf::st_drop_geometry()
+WY_queen <- create_WX(Y,queen_nb_w) 
+WY_knn8 <- create_WX(Y,knn8_nb_w)
+colnames(WY_queen) <- c('lag_totales88','lag_pop88')
+colnames(WY_knn8) <- c('lag_totales88','lag_pop88')
+Y_ext_queen <- cbind(ohlung,WY_queen)
+Y_ext_knn8 <- cbind(ohlung,WY_knn8)
+```
+
+
+```{r modelos lag}
+glmlag_queen <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
+                      lag_totales88+lag_pop88+
+              offset(log(pop_total88)),
+            data=Y_ext_queen,family = poisson(link = "log"))
+glmlag_knn8 <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
+                     lag_totales88+lag_pop88+
+              offset(log(pop_total88)),
+            data=Y_ext_knn8,family = poisson(link = "log"))
+anova(glmlag_queen,glmlag_knn8)
+summary(glmlag_queen)
+summary(glmlag_knn8)
+```
+```{r mroan modelos lag}
+moran.test(residuals(glmlag_queen), listw = queen_nb_w)
+moran.test(residuals(glmlag_knn8), listw = knn8_nb_w)
+
+```
 
 
