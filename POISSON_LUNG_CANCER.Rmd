@@ -267,20 +267,51 @@ En este se realizó una diferencia de las tasas en los años, tal diferencia sig
 
 
 ```{r}
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_white_68"),
-  tm_shape(ohlung) + tm_fill("tasa_black_68")
-)
+# 1. ENCONTRAR EL RANGO TOTAL AUTOMÁTICAMENTE
+# Buscamos el valor máximo entre todas las tasas para que la escala sea la misma
+todas_las_tasas <- c(ohlung$tasa_white_68, ohlung$tasa_white_78, ohlung$tasa_white_88,
+                     ohlung$tasa_black_68, ohlung$tasa_black_78, ohlung$tasa_black_88)
+max_val <- max(todas_las_tasas, na.rm = TRUE)
 
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_white_78"),
-  tm_shape(ohlung) + tm_fill("tasa_black_78")
-)
+# 2. FUNCIÓN AUTOMATIZADA
+crear_mapa <- function(variable, titulo) {
+  tm_shape(ohlung) + 
+    tm_polygons(variable, 
+                palette = "Blues",
+                # 'style = "fisher"' crea cortes naturales optimizados
+                style = "fisher", 
+                n = 6, # Queremos 6 niveles de azul
+                border.col = "white",
+                lwd = 0.5) + 
+    tm_layout(main.title = titulo, 
+              main.title.size = 0.7, 
+              legend.show = FALSE,
+              frame = FALSE)
+}
 
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_white_88"),
-  tm_shape(ohlung) + tm_fill("tasa_black_88")
-)
+# 3. CREAR MAPAS (Igual que antes pero ahora son automáticos)
+m_w68 <- crear_mapa("tasa_white_68", "Blanca 1968")
+m_w78 <- crear_mapa("tasa_white_78", "Blanca 1978")
+m_w88 <- crear_mapa("tasa_white_88", "Blanca 1988")
+
+m_b68 <- crear_mapa("tasa_black_68", "Negra 1968")
+m_b78 <- crear_mapa("tasa_black_78", "Negra 1978")
+m_b88 <- crear_mapa("tasa_black_88", "Negra 1988")
+
+# 4. LEYENDA AUTOMÁTICA
+# Usamos el mapa que tenga más variabilidad para generar la leyenda
+leyenda_final <- tm_shape(ohlung) + 
+  tm_polygons("tasa_black_88", palette = "Blues", style = "fisher", n = 6,
+              border.col = "white") + 
+  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
+
+# 5. RESULTADO
+tmap_arrange(m_w68, m_w78, m_w88, 
+             m_b68, m_b78, m_b88, 
+             leyenda_final,
+             nrow = 3, ncol = 3, asp = 0)
+
+
 ```
 
 Algo notorio que podemos observar, es la tasa constante de las personas negras con cancer de pulmón en el mapa de cada año, es decir, que no hay tanta varianción entre condados, también se ve que las tasas de la población negra son mayores que las tasas de la población blanca, además con el paso de los años aumenta.
@@ -299,20 +330,48 @@ ohlung$tasa_hombre_88 <- ohlung$LM88 / ohlung$POPM88
 ```
 
 ```{r}
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_mujer_68"),
-  tm_shape(ohlung) + tm_fill("tasa_hombre_68")
-)
+# 1. FUNCIÓN AUTOMATIZADA PARA GÉNERO
+# El estilo "fisher" agrupa los datos de forma inteligente para resaltar clústeres
+crear_mapa_genero <- function(variable, titulo) {
+  tm_shape(ohlung) + 
+    tm_polygons(variable, 
+                palette = "Blues",
+                style = "fisher", 
+                n = 6, 
+                border.col = "white",
+                lwd = 0.5) + 
+    tm_layout(main.title = titulo, 
+              main.title.size = 0.8, 
+              main.title.position = "center",
+              legend.show = FALSE,
+              frame = FALSE)
+}
 
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_mujer_78"),
-  tm_shape(ohlung) + tm_fill("tasa_hombre_78")
-)
+# 2. CREAR LOS 6 MAPAS (3 años x 2 géneros)
+# Fila 1: Mujeres
+m_f68 <- crear_mapa_genero("tasa_mujer_68", "Mujeres 1968")
+m_f78 <- crear_mapa_genero("tasa_mujer_78", "Mujeres 1978")
+m_f88 <- crear_mapa_genero("tasa_mujer_88", "Mujeres 1988")
 
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_mujer_88"),
-  tm_shape(ohlung) + tm_fill("tasa_hombre_88")
-)
+# Fila 2: Hombres
+m_h68 <- crear_mapa_genero("tasa_hombre_68", "Hombres 1968")
+m_h78 <- crear_mapa_genero("tasa_hombre_78", "Hombres 1978")
+m_h88 <- crear_mapa_genero("tasa_hombre_88", "Hombres 1988")
+
+# 3. LEYENDA ÚNICA
+# Usamos uno de los mapas de hombres para la escala, ya que suelen tener valores más altos
+leyenda_genero <- tm_shape(ohlung) + 
+  tm_polygons("tasa_hombre_88", palette = "Blues", style = "fisher", n = 6,
+              border.col = "white") + 
+  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
+
+# 4. ORGANIZAR EN CUADRÍCULA (3 Filas x 3 Columnas)
+# Fila 1: Mujeres | Fila 2: Hombres | Fila 3: Leyenda
+tmap_arrange(m_f68, m_f78, m_f88, 
+             m_h68, m_h78, m_h88, 
+             leyenda_genero,
+             nrow = 3, ncol = 3, asp = 0)
+
 ```
 Podemos ver que en ambos grupos se presenta variación a través de los condados, además de esto los hombres presentan tasas más altas de cancer de pulmón, las cuales aumentan conforme pasan los años.
 
@@ -351,16 +410,6 @@ Lo que podemos destacar de la tabla es:
 * Podemos evidenciar que área y perímetro solo tienen una fuerte correlación lineal entre ellas, mientras que con el resto de las variables (incluyendo la variable respuesta) presentan una correlación baja, por lo que no serán selecionadas para el modelo.
 
 * Las variables explicativas originales presentan alta correlación entre sí, por lo que solo se conservará variables que guarden la información de sexo, y raza.
-
-*Variables explicativas seleccionadas:*
-
-* *LMW68*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1968.
-
-* *LMW78*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1978.
-
-* *LFW68*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1968.
-
-* *LFW78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1978.
 
 
 # Evaluación y Selección de la Matriz $W$
@@ -758,6 +807,105 @@ tmap_arrange(
 ```
 
 
+# variables seleccionadas
+
+```{r moran bivariado funcion, include=FALSE}
+bivariate_moran <- function(x, y, listw) {
+  # Validaciones básicas
+  stopifnot(length(x) == length(y))
+  
+  w_mat <- spdep::listw2mat(listw)
+  
+  # Estandarización
+  zx <- scale(x)[, 1]
+  zy <- scale(y)[, 1]
+  
+  n <- length(x)
+  s0 <- sum(w_mat)
+  
+  # Producto cruzado espacial
+  cross_prod <- sum(
+    outer(zx, zy) * w_mat
+  )
+  
+  i_xy <- (n / s0) * cross_prod
+  
+  tibble::tibble(
+    moran_bivariado = as.numeric(i_xy)
+  )
+}
+```
+
+```{r}
+X <- numericas %>% dplyr::select(-c("casos_totales88","pop_total88",
+                                    'POPMW88','POPFW88','POPM88',
+                                    'POPF88','LFW88','LMW88','LF88',
+                                    'LM88')) %>% 
+  sf::st_drop_geometry()
+Y <- numericas[,c("tasa_88")] %>% 
+  sf::st_drop_geometry()
+resultado <- do.call(
+  rbind,
+  lapply(names(X), function(var_x) {
+    
+    res <- bivariate_moran(
+      x = X[[var_x]],
+      y = Y,
+      listw = queen_nb_w
+    )
+    
+    data.frame(
+      variable_x = var_x,
+      moran_bivariado = res$moran_bivariado
+    )
+  })
+)
+
+kableExtra::kable(resultado[order(resultado$moran_bivariado),],
+                  caption ='Moran bivariado con queen',
+                  digits = 4)
+```
+Podemos ver que algunas variables presentan una correlación positiva con la variable respuesta (tasa total de cancer en 1988), principalmente comparando con las variables que tenían una alta correlación lineal de Pearson con la variable respuesta, pero pensando principalmente en las tasas se ve que para valores altos en una zona, sus vecinos tienden a tener valores altos
+
+```{r}
+resultado <- do.call(
+  rbind,
+  lapply(names(X), function(var_x) {
+    do.call(
+      rbind,
+      lapply(names(X), function(var_y) {
+        
+        res <- bivariate_moran(
+          x = X[[var_x]],
+          y = X[[var_y]],
+          listw = queen_nb_w
+        )
+        
+        data.frame(
+          variable_x = var_x,
+          variable_y = var_y,
+          moran_bivariado = res$moran_bivariado
+        )
+      })
+    )
+  })
+)
+
+kableExtra::kable(resultado[order(resultado$moran_bivariado),],
+                  caption ='Moran bivariado con 8 vecinos',
+                  digits = 4)
+```
+
+
+*Variables explicativas seleccionadas:*
+
+* *LMW68*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1968.
+
+* *LMW78*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1978.
+
+* *LFW68*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1968.
+
+* *LFW78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1978.
 
 
 # Regresión poisson
