@@ -15,13 +15,13 @@ institute: |
   
 output:
   # html_document:
-  pdf_document:
-    toc: true
-    toc_depth: 3
-    number_sections: true
-    latex_engine: xelatex
-fontsize: 12pt
-geometry: margin=2.5cm
+#   pdf_document:
+#     toc: true
+#     toc_depth: 3
+#     number_sections: true
+#     latex_engine: xelatex
+# fontsize: 12pt
+# geometry: margin=2.5cm
 # bibliography: BiblioConsultoria1.bib
 ---
 
@@ -539,7 +539,7 @@ Algo que se debe resaltar es que hay un aumento en las tasas tanto de hombres co
 #                   digits = 3)
 ```
 
-```{r correlaciones_3columnas, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, results='asis'}
+```{r correlaciones_3columnas, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
 # 1. Preparar datos numéricos
 numericas <- ohlung %>%
@@ -1345,6 +1345,12 @@ lm.morantest(poisson_final, W_seleccionada, alternative = "two.sided", zero.poli
 check_model(poisson_final)
 check_overdispersion(poisson_final)
 
+# 1. Asegurarnos de usar la nueva función lm.RStests
+diagnostico_espacial <- lm.RStests(poisson_final, W_seleccionada, test = "all", zero.policy = TRUE)
+
+# 2. Mostrar los resultados
+print(diagnostico_espacial)
+
 ```
 
 
@@ -1586,6 +1592,119 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 
 # Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
 ```
+
+
+### 1. Doblemente generalizado
+
+```{r doblemente generalizado, fig.height=10, fig.width=10}
+dglm_model <- dglm(formula = LF88 ~ scale(tasa_black_88) + scale(tasa_white_88) + 
+                   scale(tasa_hombre_88) + scale(cambio_78_88) + 
+                   scale(cambio_68_88),
+  # El offset se añade fuera de la escala
+  offset = log(POPF88),
+                   family = poisson(link = "log"),
+                   dfamily = Gamma(link = "log"),   
+                   data = ohlung)
+
+summary(dglm_model)
+check_model(dglm_model)
+
+moran.test(residuals(dglm_model), W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+check_overdispersion(dglm_model)
+```
+
+el comportamiento de los residuales no es para nada normal 
+
+#### 1. Modelo de media
+
+### *Independecia*
+
+```{r acf dglm_media}
+acf(residuals(dglm_model), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_media}
+dwtest(dglm_model)
+```
+En efecto no se rechaza la independencia de los errores, con un p valor mayor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_media}
+hist(residuals(dglm_model),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model), col = "red", lwd = 2)
+```
+
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media}
+shapiro.test(residuals(dglm_model))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_media, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model),
+     residuals(dglm_model,type="pearson"))
+abline(h=0,col="red")
+
+```
+
+Podemos notar que se presenta una varianza creciente con una forma notoria en los residuales de cono.
+
+#### 1. Modelo de dispersión
+
+### *Independecia*
+
+```{r acf dglm_varianza}
+moran.test(residuals(dglm_model$dispersion.fit),  W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+acf(residuals(dglm_model$dispersion.fit), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_varianza}
+dwtest(dglm_model$dispersion.fit)
+```
+En efecto no se rechaza la independencia de los errores, con un p valor mayor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_varianza}
+hist(residuals(dglm_model$dispersion.fit),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model$dispersion.fit), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model$dispersion.fit), col = "red", lwd = 2)
+```
+
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media2}
+shapiro.test(residuals(dglm_model$dispersion.fit))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_varianza, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model$dispersion.fit),
+     residuals(dglm_model$dispersion.fit))
+abline(h=0,col="red")
+
+```
+
+
+
+
 
 
 
