@@ -27,6 +27,7 @@ library(spdep) # para función poly2nb en vecindad criterio queen
 library(tmap) #para graficar mapa
 library(grid) # para mapa lisa
 library(spatialreg) # para rezagar variables
+library(DiagrammeR) # para diagrama de flujo
 ```
 # Introducción {#PrInv}
 
@@ -1522,5 +1523,75 @@ moran.test(residuals(glmlag_queen), listw = queen_nb_w)
 moran.test(residuals(glmlag_knn8), listw = knn8_nb_w)
 
 ```
+
+
+# Selección del mejor modelo
+
+Para seleccionar el mejor modelo realizamos el siguiente procedimiento:
+
+```{r}
+library(DiagrammeR)
+
+grViz("
+digraph modelo {
+
+  graph [
+    layout = dot,
+    rankdir = TB,
+    nodesep = 0.6,
+    ranksep = 0.8
+  ]
+
+  edge [splines = ortho]
+
+  node [
+    shape = rectangle,
+    style = 'rounded, filled',
+    fillcolor = lightblue
+  ]
+
+  # Decisiones (rombos)
+  homoc [label = '¿Homoscedasticidad?', shape = diamond]
+  indep [label = '¿Independencia?', shape = diamond]
+  norm  [label = '¿Normalidad?', shape = diamond]
+  beta  [label = '¿Algún beta significativo?', shape = diamond]
+
+  # Procesos
+  inicio [label = 'Modelo candidato']
+  cv     [label = 'LOOCV (n = 88)']
+  rss    [label = 'Comparar RSS']
+  mejor  [label = 'Mejor modelo', shape = oval, fillcolor = chartreuse3]
+
+  # Columna derecha (descartar)
+  desc1 [label = 'Descartar modelo', fillcolor = lightcoral]
+  desc2 [label = 'Descartar modelo', fillcolor = lightcoral]
+  desc3 [label = 'Descartar modelo', fillcolor = lightcoral]
+  desc4 [label = 'Descartar modelo', fillcolor = lightcoral]
+
+  # --- COLUMNAS ---
+  { rank = same; homoc; desc1 }
+  { rank = same; indep; desc2 }
+  { rank = same; norm;  desc3 }
+  { rank = same; beta;  desc4 }
+
+  # Flujo principal (columna izquierda)
+  inicio -> homoc
+  homoc -> indep [label = 'Sí']
+  indep -> norm  [label = 'Sí']
+  norm  -> beta  [label = 'Sí']
+  beta  -> cv    [label = 'Sí']
+  cv -> rss -> mejor
+
+  # Conexiones a columna derecha (NO)
+  homoc -> desc1 [label = 'No']
+  indep -> desc2 [label = 'No']
+  norm  -> desc3 [label = 'No']
+  beta  -> desc4 [label = 'No']
+}
+")
+```
+
+
+
 
 
