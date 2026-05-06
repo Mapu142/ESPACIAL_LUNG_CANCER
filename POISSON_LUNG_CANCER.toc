@@ -1,0 +1,30 @@
+\contentsline {section}{\numberline {1}Introducción}{2}{section.1}%
+\contentsline {subsection}{\numberline {1.1}Exploración espacial}{6}{subsection.1.1}%
+\contentsline {section}{\numberline {2}Matrices W}{10}{section.2}%
+\contentsline {section}{\numberline {3}Modelado Espacial de Cáncer de Pulmón (1988)}{10}{section.3}%
+\contentsline {subsection}{\numberline {3.1}Selección de Variables}{10}{subsection.3.1}%
+\contentsline {subsection}{\numberline {3.2}Evaluación y Selección de la Matriz \(W\)}{11}{subsection.3.2}%
+\contentsline {subsection}{\numberline {3.3}1. Comparación Estructural y Topológica}{13}{subsection.3.3}%
+\contentsline {subsection}{\numberline {3.4}2. Diagrama de Dispersión de Moran (Moran Scatterplot)}{14}{subsection.3.4}%
+\contentsline {subsection}{\numberline {3.5}3. Exploración de Promedios Móviles Espaciales}{15}{subsection.3.5}%
+\contentsline {subsection}{\numberline {3.6}4. Análisis de Eigenvectores (MESF/MEM)}{16}{subsection.3.6}%
+\contentsline {subsection}{\numberline {3.7}5. Pruebas de Diagnóstico para Selección del Modelo (LM Tests)}{17}{subsection.3.7}%
+\contentsline {subsubsection}{\numberline {3.7.1}Las Pruebas Simples (RSerr y RSlag)}{23}{subsubsection.3.7.1}%
+\contentsline {subsubsection}{\numberline {3.7.2}Las Pruebas Robustas (¡Las que mandan aquí!)}{23}{subsubsection.3.7.2}%
+\contentsline {subsubsection}{\numberline {3.7.3}1. Modelo Poisson}{24}{subsubsection.3.7.3}%
+\contentsline {subsubsection}{\numberline {3.7.4}\emph {Independecia}}{28}{subsubsection.3.7.4}%
+\contentsline {subsubsection}{\numberline {3.7.5}\emph {Normalidad}}{29}{subsubsection.3.7.5}%
+\contentsline {subsubsection}{\numberline {3.7.6}\emph {Homocedasticidad}}{30}{subsubsection.3.7.6}%
+\contentsline {paragraph}{\numberline {3.7.6.1}Verificación de Sobredispersión}{31}{paragraph.3.7.6.1}%
+\contentsline {subsubsection}{\numberline {3.7.7}1. Modelo quasi Poisson}{31}{subsubsection.3.7.7}%
+\contentsline {subsubsection}{\numberline {3.7.8}\emph {Independecia}}{36}{subsubsection.3.7.8}%
+\contentsline {subsubsection}{\numberline {3.7.9}\emph {Normalidad}}{37}{subsubsection.3.7.9}%
+\contentsline {subsubsection}{\numberline {3.7.10}\emph {Homocedasticidad}}{38}{subsubsection.3.7.10}%
+\contentsline {paragraph}{\numberline {3.7.10.1}Verificación de Sobredispersión}{39}{paragraph.3.7.10.1}%
+\contentsline {subsubsection}{\numberline {3.7.11}1. Binomial negativo}{39}{subsubsection.3.7.11}%
+\contentsline {subsubsection}{\numberline {3.7.12}\emph {Independecia}}{44}{subsubsection.3.7.12}%
+\contentsline {subsubsection}{\numberline {3.7.13}\emph {Normalidad}}{45}{subsubsection.3.7.13}%
+\contentsline {subsubsection}{\numberline {3.7.14}\emph {Homocedasticidad}}{46}{subsubsection.3.7.14}%
+\contentsline {paragraph}{\numberline {3.7.14.1}Verificación de Sobredispersión}{47}{paragraph.3.7.14.1}%
+\contentsline {subsubsection}{\numberline {3.7.15}3. Comparación Visual de Predicciones}{47}{subsubsection.3.7.15}%
+\contentsline {subsubsection}{\numberline {3.7.16}4. Autocorrelación Espacial en Residuales de Poisson}{48}{subsubsection.3.7.16}%
