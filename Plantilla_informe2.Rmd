@@ -15,21 +15,21 @@ institute: |
   
 output:
   html_document:
-  toc: true
-  toc_depth: 3
-  toc_float: 
-    collapsed: false
-    smooth_scroll: true
-  number_sections: true
-  theme: yeti  # ← Más moderno que bootstrap; opciones: flatly, lumen, cosmo
-  highlight: tango
-  code_folding: hide
-  code_download: true  # ← Permite descargar el código R del informe
-  self_contained: true  # ← Todo en un solo archivo HTML (imágenes, CSS, JS)
-  mathjax: true
-  df_print: kable  # ← Mejora la renderización de data.frames
-  keep_md: false  # ← Cambia a true si quieres depurar el .md intermedio
-
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    theme: bootstrap
+    highlight: tango
+    code_folding: hide
+  pdf_document:
+    toc: true
+    toc_depth: 3
+    number_sections: true
+    latex_engine: xelatex
+    keep_tex: true
+fontsize: 12pt
+geometry: margin=2.5cm
+bibliography: BIBLIOGRAFIA.bib
 #   pdf_document:
 #     toc: true
 #     toc_depth: 3
@@ -39,6 +39,7 @@ output:
 # geometry: margin=2.5cm
 # bibliography: BiblioConsultoria1.bib
 ---
+
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
 #rm(list = ls())
 library(dplyr) # para manejo de datos
@@ -980,10 +981,21 @@ summary(mco_final)
 
 Se emplea **Stepwise** para encontrar el mejor ajuste del modelo, el cual penaliza la inclusión de variables que no aportan significativamente a la reducción de la varianza del error.
 
+### Interpretación del modelo final
+
+El modelo final incluye tres variables independientes: la tasa de hombres en 1978 (*tasa_hombres_78*), la tasa de hombres en 1988 (*tasa_hombres_88*) y la tasa de blancos en 1988 (*tasa_white_88*).
+
+
+* Controlando por la tasa de hombres en 1978 (tasa_hombres_78) y la tasa de blancos en 1988 (tasa_white_88), la tasa de hombres en 1988 (tasa_hombres_88) presentó una asociación negativa y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres, menor valor en la tasa transformada de las mujeres 
+
+* Controlando por la tasa de hombres en 1988 (tasa_hombres_88) y la tasa de blancos en 1988 (tasa_white_88), la tasa de hombres en 1978 (tasa_hombres_78) presentó una asociación positiva y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres de 1978, tambien mayor valor en la tasa transformada de las mujeres de 1988. 
+
+* Controlando por la tasa de hombres en 1978 (tasa_hombres_78) y la tasa de hombres en 1988 (tasa_hombres_88), la tasa de blancos en 1988 (tasa_white_88), presentó una asociación positiva y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres, tambien mayor valor en la tasa transformada de las mujeres
+
 
 Es fundamental verificar si los residuales del modelo de regresión son independientes o si presentan una estructura geográfica que invalide la inferencia clásica.
 
-```{r diagnostico-espacial, include=FALSE}
+```{r diagnostico-espacial, include=T}
 
 # Test de Moran sobre residuales del modelo final
 moran_final <- lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
@@ -998,33 +1010,12 @@ print(diagnostico_espacial)
 Evaluamos si los residuales cumplen con las condiciones necesarias para que los estimadores sean los mejores estimadores lineales insesgados (BLUE).
 
 
-```{r supuestos-clasicos, include=FALSE}
+```{r supuestos-clasicos, fig.height=10, fig.width=10, include=T}
 check_model(mco_final)
 
-
-# A. Independencia (Durbin-Watson)
-# Evalúa la correlación serial, útil si los datos tienen un ordenamiento
-dwtest(mco_completo)
-
-# B. Normalidad (Shapiro-Wilk)
-# Un p-valor < 0.05 indica que los residuales no siguen una distribución normal
-shapiro.test(residuals(mco_completo))
-
-# C. Homocedasticidad (Breusch-Pagan)
-# Evalúa si la varianza del error es constante. Si p < 0.05, existe heterocedasticidad
-bptest(mco_completo)
-
-# Visualización de Diagnósticos
-par(mfrow = c(2,2))
-hist(residuals(mco_completo), breaks = 50, main = "Histograma", col = "lightblue")
-qqnorm(residuals(mco_completo)); qqline(residuals(mco_completo), col = "red")
-acf(residuals(mco_completo), main = "ACF de Residuales")
 ```
 
 ```{r creacion rezagos en Y, include=FALSE}
-# indepedencia
-acf(residuals(mco_completo), main = "ACF de los residuales", col = "blue", lwd = 2)
-dwtest(mco_completo)
 
 # Normalidad
 hist(residuals(mco_completo),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
@@ -1032,8 +1023,6 @@ qqnorm(residuals(mco_completo), main = "QQ-Plot de los residuales")
 qqline(residuals(mco_completo), col = "red", lwd = 2)
 shapiro.test(residuals(mco_completo))
 
-#Homoscedasticidad
-bptest(mco_completo)
 
 ```
 
@@ -1057,14 +1046,15 @@ bptest(mco_completo)
 
 ```{r acf glm_lag}
 
+# A. Independencia (Durbin-Watson)
+# Evalúa la correlación serial, útil si los datos tienen un ordenamiento
+dwtest(mco_completo)
 
 ```
 
 El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
 
-```{r independencia glm_lag}
 
-```
 Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
 
 ```{r moran test}
@@ -1077,6 +1067,12 @@ Se aplico un test de moran para verificar que dentro de los residuales no hubier
 
 ```{r graficos normales glm_lag}
 
+# Visualización de Diagnósticos
+par(mfrow = c(2,3))
+hist(residuals(mco_completo), breaks = 50, main = "Histograma", col = "lightblue")
+qqnorm(residuals(mco_completo)); qqline(residuals(mco_completo), col = "red")
+acf(residuals(mco_completo), main = "ACF de Residuales", col = "blue", lwd = 2)
+
 ```
 
 El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
@@ -1085,6 +1081,9 @@ Para confirmar si la distribución es o no normal se decidió hacer la prueba de
 
 ```{r normalidad prueba glm_lag}
 
+# B. Normalidad (Shapiro-Wilk)
+# Un p-valor < 0.05 indica que los residuales no siguen una distribución normal
+shapiro.test(residuals(mco_completo))
 ```
 De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
 
@@ -1095,10 +1094,23 @@ Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la poblac
 
 ```{r breusch-pagan glm_lag, echo=FALSE, message=FALSE, warning=FALSE}
 
+# C. Homocedasticidad (Breusch-Pagan)
+# Evalúa si la varianza del error es constante. Si p < 0.05, existe heterocedasticidad
+bptest(mco_completo)
 ```
 Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
 
 
+
+# Conclusiones
+
+* Se encontró evidencia de asociación entre la tasa de incidencia en mujeres de 1988 transformada y las variables tasa de incidencia en hombres de 1978 (tasa_hombres_78) y tasa de incidencia en población blanca de 1988 (tasa_white_88), presentando ambas una relación positiva y estadísticamente significativa dentro del modelo ajustado.
+
+* La variable tasa_hombres_88 presentó una asociación negativa con la variable respuesta transformada, indicando que, al controlar las demás variables del modelo, mayores tasas de incidencia en hombres de 1988 se relacionaron con menores valores en la tasa transformada de mujeres de 1988.
+
+* No hubo necesidad de incorporar una estructura espacial, ya que el modelo fue suficientemente bueno para explicar mejor el fenómeno.
+
+* Debido a que la variable respuesta fue transformada mediante una potencia de 0.9, las interpretaciones de magnitud deben realizarse sobre la escala transformada y no directamente sobre la tasa original.
 
 # Apendice de intentos
 ```{r apendice, include=FALSE}
