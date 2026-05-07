@@ -859,8 +859,8 @@ local_moran <- localmoran(ohlung$tasa_mujer_88, W_seleccionada, zero.policy = TR
          pch = 19, 
          col = "black",          # Puntos normales en negro
          bg = "red",             # Puntos influyentes en rojo
-         xlab = "Tasa de Cáncer 1988", 
-         ylab = "Tasa Rezagada (Promedio Vecinos KNN8)",
+         xlab = "Tasa de Cáncer en mujeres del año 1988", 
+         ylab = "Tasa Rezagada (Promedio Vecinos W ponderada)",
          main = "Dispersograma de Moran: Cáncer de Pulmón en Ohio (1988)",
          las = 1,      # Mantiene las etiquetas horizontales
          cex = 0.7,    # Reducimos un poco el tamaño de los puntos
@@ -905,7 +905,7 @@ ohlung$etiqueta_lisa <- ifelse(ohlung$cluster == "No Significativo", "", as.char
 # 5. Dibujar el mapa con tmap
 map_lisa <- tm_shape(ohlung) +
   tm_polygons("cluster", 
-              title = "Clústeres LISA (Tasa 88)",
+              title = "Clústeres LISA \n(Tasa mujeres 88)",
               palette = c("Alto-Alto (Hotspot)" = "#e31a1c", 
                           "Bajo-Bajo (Coldspot)" = "#1f78b4", 
                           "Alto-Bajo (Atípico)" = "#a6cee3", 
@@ -915,7 +915,7 @@ map_lisa <- tm_shape(ohlung) +
               lwd = 0.4) +
   # Añadimos los nombres destacados
   tm_text("etiqueta_lisa", size = 0.6, col = "black", remove.overlap = TRUE) +
-  tm_layout(main.title = "B. Mapa de Clústeres (LISA)",
+  tm_layout(main.title = " Mapa de Clústeres (LISA)",
             main.title.size = 1,
             # legend.position = c("left", "bottom"),
             legend.title.size = 0.8,
@@ -939,7 +939,7 @@ par(mfrow = c(1, 2), mar = c(0, 0, 1, 0))
 plot(st_geometry(ohlung), border = "grey", main = "Contigüidad Reina")
 plot(nb_q, coords, add = TRUE, col = "blue", lwd = 0.5)
 
-plot(st_geometry(ohlung), border = "grey", main = "Ponderada por tasa_mujer_88")
+plot(st_geometry(ohlung), border = "grey", main = "Ponderada por tasa_white_88")
 plot(W_seleccionada, coords, add = TRUE, col = "red", lwd = 0.5)
 
 # # 3. Métricas de conectividad
@@ -963,8 +963,7 @@ En esta sección, se busca identificar los determinantes de la mortalidad por c�
 
 Se inicia con un modelo lineal que incluye todas las variables demográficas y de tasas históricas. Se aplica una transformación de potencia ($0.9$) a la variable dependiente para intentar aproximar el supuesto de normalidad.
 
-
-```{r mco-stepwise, include=T}
+```{r mco-stepwise, include=FALSE}
 library(MASS)
 library(performance)
 
@@ -973,27 +972,53 @@ mco_completo <- lm(tasa_mujer_88^0.9 ~ tasa_hombre_68 +tasa_mujer_68   + tasa_ho
                data = ohlung)
 summary(mco_completo)
 
+```
+
+Luego de aplicar el proceso de selección de variables, el modelo se redujo a tres predictores clave: la tasa de hombres en 1978 (*tasa_hombre_78*), la tasa de hombres en 1988 (*tasa_hombre_88*) y la tasa de blancos en 1988 (*tasa_white_88*).
+
+
+$$
+\boxed{
+\begin{aligned}
+\left(\text{tasa}_{\text{mujer},88}\right)^{0.9} &= 
+\beta_0 + \beta_1 \cdot \text{tasa}_{\text{hombre},78} + \beta_2 \cdot \text{tasa}_{\text{hombre},88} + \beta_3 \cdot \text{tasa}_{\text{white},88} + \epsilon \\[8pt]
+&= 3.489 \times 10^{-5} + 0.097 \cdot \text{tasa}_{\text{h},78} - 1.774 \cdot \text{tasa}_{\text{h},88} + 3.667 \cdot \text{tasa}_{\text{w},88}
+\end{aligned}
+}
+$$
+
+
+```{r mco-stepwise2, include=T}
 # Selección automática de variables (Stepwise) mediante AIC
 mco_final <- stepAIC(mco_completo, direction = "both", trace = FALSE)
 
 summary(mco_final)
 ```
 
-Se emplea **Stepwise** para encontrar el mejor ajuste del modelo, el cual penaliza la inclusión de variables que no aportan significativamente a la reducción de la varianza del error.
+El modelo final es altamente robusto, explicando el 91.5% de la variabilidad de la tasa de mortalidad de mujeres en 1988 (ajustada) y presenta un error estándar residual de $7.899e-05$, lo que indica un ajuste excelente a los datos observados. 
 
-### Interpretación del modelo final
+Es importante destacar que, debido a la transformación aplicada a la variable dependiente, las interpretaciones de magnitud deben realizarse sobre la escala transformada y no directamente sobre la tasa original. Sin embargo, la dirección de las asociaciones (positiva o negativa) se mantiene válida para inferir relaciones entre las variables independientes y la tasa de mortalidad femenina.
 
-El modelo final incluye tres variables independientes: la tasa de hombres en 1978 (*tasa_hombres_78*), la tasa de hombres en 1988 (*tasa_hombres_88*) y la tasa de blancos en 1988 (*tasa_white_88*).
+* Controlando por la tasa de hombres en 1978 (*tasa_hombres_78*) y la tasa de blancos en 1988 (*tasa_white_88*), la tasa de hombres en 1988 (*tasa_hombres_88*) presentó una asociación negativa y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres, menor valor en la tasa transformada de las mujeres 
 
+* Controlando por la tasa de hombres en 1988 (*tasa_hombres_88*) y la tasa de blancos en 1988 (*tasa_white_88*), la tasa de hombres en 1978 (*tasa_hombres_78*) presentó una asociación positiva y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres de 1978, tambien mayor valor en la tasa transformada de las mujeres de 1988. 
 
-* Controlando por la tasa de hombres en 1978 (tasa_hombres_78) y la tasa de blancos en 1988 (tasa_white_88), la tasa de hombres en 1988 (tasa_hombres_88) presentó una asociación negativa y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres, menor valor en la tasa transformada de las mujeres 
+* Controlando por la tasa de hombres en 1978 (*tasa_hombres_78*) y la tasa de hombres en 1988 (*tasa_hombres_88*), la tasa de blancos en 1988 (*tasa_white_88*), presentó una asociación positiva y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres, tambien mayor valor en la tasa transformada de las mujeres
 
-* Controlando por la tasa de hombres en 1988 (tasa_hombres_88) y la tasa de blancos en 1988 (tasa_white_88), la tasa de hombres en 1978 (tasa_hombres_78) presentó una asociación positiva y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres de 1978, tambien mayor valor en la tasa transformada de las mujeres de 1988. 
-
-* Controlando por la tasa de hombres en 1978 (tasa_hombres_78) y la tasa de hombres en 1988 (tasa_hombres_88), la tasa de blancos en 1988 (tasa_white_88), presentó una asociación positiva y estadísticamente significativa con la tasa de mujeres en 1988 transformada, es decir, que a mayor valor en la tasa de hombres, tambien mayor valor en la tasa transformada de las mujeres
-
+### Validación de supuestos
 
 Es fundamental verificar si los residuales del modelo de regresión son independientes o si presentan una estructura geográfica que invalide la inferencia clásica.
+
+
+
+#### Análisis de Diagnóstico Espacial
+Principalmente se evidencia que el modelo MCO (*mco_final*) es plenamente válido y no necesita correcciones espaciales.
+
+
+1. Test de Moran sobre Residuales (p-value = 0.4769):
+Es casi igual al esperado (-0.019). Al ser el p-valor > 0.05, no se rechazar la hipótesis nula de independencia espacial.
+
+Es decir que los errores del modelo se distribuyen de forma aleatoria en el mapa de Ohio. No hay "clústeres" de error que el modelo haya olvidado capturar.
 
 ```{r diagnostico-espacial, include=T}
 
@@ -1001,13 +1026,26 @@ Es fundamental verificar si los residuales del modelo de regresión son independ
 moran_final <- lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 print(moran_final)
 
+```
+
+2. Pruebas del Multiplicador de Lagrange (LM Tests):
+
+```{r diagnostico-espacial2, include=T}
+
 # Pruebas del Multiplicador de Lagrange (LM Tests)
 diagnostico_espacial <- lm.RStests(mco_final, W_seleccionada, test = "all", zero.policy = TRUE)
 print(diagnostico_espacial)
 ```
+Todas las pruebas (RSerr, RSlag y sus versiones ajustadas) tienen p-valores muy altos (entre 0.74 y 0.98).
 
+* RSerr (0.7429): No hay evidencia de dependencia espacial en el término de error.
 
-Evaluamos si los residuales cumplen con las condiciones necesarias para que los estimadores sean los mejores estimadores lineales insesgados (BLUE).
+* RSlag (0.8778): No hay evidencia de que la variable dependiente de un condado esté influenciada por los valores de sus vecinos (efecto contagio).
+
+* SARMA (0.9475): Confirma que no existe una combinación de ambos efectos.
+
+Se confirma que los residuales del modelo final no presentan autocorrelación significativa. Los tests de Multiplicador de Lagrange (LM) ratifican la ausencia de efectos de retardo (lag) o error espacial. Por lo tanto, los estimadores obtenidos mediante Mínimos Cuadrados Ordinarios (MCO) son consistentes y eficientes, no siendo necesario recurrir a modelos espaciales (SAR o SEM).
+
 
 
 ```{r supuestos-clasicos, fig.height=10, fig.width=10, include=T}
@@ -1015,34 +1053,10 @@ check_model(mco_final)
 
 ```
 
-```{r creacion rezagos en Y, include=FALSE}
+El modelo presenta un excelente ajuste global, aunque los diagnósticos revelan la presencia de una observación altamente influyente (Caso 66) que distorsiona la normalidad de los residuos. Asimismo, se detecta colinealidad moderada entre la tasa racial y la tasa masculina de 1988, lo cual es esperable en datos demográficos estructurales, pero sugiere precaución al interpretar los coeficientes de forma aislada. 
+Sin embargo, no se evidencian problemas de heterocedasticidad ni autocorrelación, lo que respalda la validez de los intervalos de confianza y pruebas de significancia para los coeficientes del modelo.
 
-# Normalidad
-hist(residuals(mco_completo),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals(mco_completo), main = "QQ-Plot de los residuales")
-qqline(residuals(mco_completo), col = "red", lwd = 2)
-shapiro.test(residuals(mco_completo))
-
-
-```
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-### *Independecia*
+#### Independecia
 
 ```{r acf glm_lag}
 
@@ -1051,33 +1065,26 @@ shapiro.test(residuals(mco_completo))
 dwtest(mco_completo)
 
 ```
+Se realizó la prueba de Durbin-Watson para evaluar la independencia de los errores. El estadístico obtenido (DW = 1.71) y su nivel de significancia (p = 0.084) permiten mantener la hipótesis de ausencia de autocorrelación serial al 5%. 
 
-El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
-
-
-Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
-
-```{r moran test}
-
-```
-Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba es un p valor mayor al nivel de significancia ($\alpha=0.05$), por lo que no se rechaza la $H_0$ de independecia espacial.
+Este resultado, sumado a la falta de autocorrelación espacial detectada previamente mediante el Índice de Moran, ratifica que el modelo cumple con el supuesto de independencia, garantizando que no existe un sesgo sistemático en los errores de estimación
 
 
-### *Normalidad*
+#### Normalidad y ACF de Residuales
 
-```{r graficos normales glm_lag}
+```{r graficos normales glm_lag, fig.height=4, fig.width=10}
 
 # Visualización de Diagnósticos
-par(mfrow = c(2,3))
+par(mfrow = c(1,3))
 hist(residuals(mco_completo), breaks = 50, main = "Histograma", col = "lightblue")
 qqnorm(residuals(mco_completo)); qqline(residuals(mco_completo), col = "red")
 acf(residuals(mco_completo), main = "ACF de Residuales", col = "blue", lwd = 2)
 
 ```
 
-El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+Evaluando los residuales revela un comportamiento mayoritariamente normal en la zona central de la distribución. No obstante, el gráfico Q-Q evidencia desviaciones en las colas, causadas por un número reducido de observaciones atípicas con residuos elevados. 
 
-Para confirmar si la distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+El gráfico de autocorrelación (ACF) corrobora la independencia de los errores, mostrando que la estructura de la base de datos no introduce sesgos sistemáticos significativos.
 
 ```{r normalidad prueba glm_lag}
 
@@ -1085,12 +1092,12 @@ Para confirmar si la distribución es o no normal se decidió hacer la prueba de
 # Un p-valor < 0.05 indica que los residuales no siguen una distribución normal
 shapiro.test(residuals(mco_completo))
 ```
-De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+La prueba de Shapiro-Wilk rechaza la normalidad de los residuales ($W = 0.81, p < 0.001$). Esta desviación se atribuye principalmente a la presencia de observaciones atípicas extremas identificadas en los diagnósticos visuales. 
 
+Sin embargo, dado que el modelo cumple con los supuestos de independencia espacial y serial, y presenta un alto poder explicativo ($R^2 = 0.91$), los coeficientes siguen siendo interpretables, aunque se recomienda precaución al generalizar los intervalos de confianza para los casos extremos.
 
 ### *Homocedasticidad*
 
-Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
 
 ```{r breusch-pagan glm_lag, echo=FALSE, message=FALSE, warning=FALSE}
 
@@ -1098,8 +1105,8 @@ Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la poblac
 # Evalúa si la varianza del error es constante. Si p < 0.05, existe heterocedasticidad
 bptest(mco_completo)
 ```
-Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
 
+Para evaluar la constancia de la varianza de los errores, se aplicó la prueba de Breusch-Pagan. El estadístico obtenido ($BP = 6.97, p = 0.32$) indica que el modelo cumple con el supuesto de homocedasticidad. 
 
 
 # Conclusiones
@@ -1614,3 +1621,7 @@ tab_comp <- data.frame(
 
 knitr::kable(tab_comp, digits = 4, caption = "Comparativa de Criterios de Información y Diagnóstico Espacial")
 ```
+
+Tras evaluar diversas especificaciones, el Modelo de Retardo Espacial (lag) se selecciona como el modelo final. No solo presenta una de las métricas de información más favorables (AIC = 400.06), sino que corrige eficazmente la autocorrelación espacial detectada en los modelos de conteo tradicionales ($p = 0.24$). 
+
+Esto garantiza que las inferencias sobre la mortalidad por cáncer de pulmón en Ohio son estadísticamente válidas y consideran la influencia de los condados vecinos.
