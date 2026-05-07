@@ -1,8 +1,28 @@
 ---
-title: "CÁNCER DE PULMÓN OHIO"
-author: "María Paula Camargo Rincón"
-date: "2026-03-02"
+title: |
+  Mortalidad por cáncer de pulmón en Ohio (décadas de 1960 a 1980)
+  
+
+author: |
+  **Maria Paula Camargo Rincon**^[mcamargori@unal.edu.co]
+  **Laura Katherine Martínez Castiblanco**^[laumartinezca@unal.edu.co]
+  
+institute: |
+  Departamento de Estadística  
+  Facultad de Ciencias  
+  Universidad Nacional de Colombia  
+  Bogotá, Colombia
+  
 output:
+  # html_document:
+#   pdf_document:
+#     toc: true
+#     toc_depth: 3
+#     number_sections: true
+#     latex_engine: xelatex
+# fontsize: 12pt
+# geometry: margin=2.5cm
+# bibliography: BiblioConsultoria1.bib
 ---
 ```{r directorio y librerias, message=FALSE, warning=FALSE, include=FALSE}
 #rm(list = ls())
@@ -25,22 +45,44 @@ library(DHARMa) # para prueba de autocorrelación en residuales con glmer
 library(tseries) # para pruebas de rachas
 library(spdep) # para función poly2nb en vecindad criterio queen
 library(tmap) #para graficar mapa
+library(kableExtra)
+library(gridExtra)
+library(tidyverse)
 library(grid) # para mapa lisa
+library(corrplot)
+library(RColorBrewer)
 library(spatialreg) # para rezagar variables
 library(DiagrammeR) # para diagrama de flujo
 ```
-# Introducción {#PrInv}
+# Introducción 
+
+En la época ya existía evidencia científica respecto al efecto que tenía fumar en el cancer de pulmón, Sin embargo, entre 1978 y 1987, el médico general australiano William Whitby publicó dos libros en los que cuestionaba dicha relación, generando incertidumbre en parte de la población.
+
+El ambiente del cual se rodean las personas significaba bastante pues la exposición del humo de un fumador aumenta el riesgo de cancer de pulmón entre el 10%-30%.
+
+## Pregunta problema
+
+¿En qué medida la tasa de incidencia de cáncer de pulmón en mujeres blancas en 1988 está asociada con las tasas de otros grupos poblacionales, la morfología de la región y los cambios temporales en décadas previas, controlando por población total y casos totales?
+
+## Objetivos:
+
+*General:* Analizar la tasa de incidencia de cáncer de pulmón en las mujeres blancas en 1988 a partir de tasas de otros grupos poblacionales, morfología de la región y los cambios temporales en décadas previas.
+
+*Específicos:* 
+
+* Identificar la relación entre las tasas de incidencia de distintos grupos poblacionales de décadas pasadas y la tasa de incidencia de cáncer de pulmón en mujeres blancas en 1988.
+
+* Evaluar la influencia de las características morfológicas regionales en la tasa de incidencia de las mujeres blancas en 1988.
+
+* Analizar los cambios temporales que hubo en la tasa de incidencia de las mujeres blancas en los distintos años.
+
+## Descripción de las variables
 
 Este conjunto de datos se deriva de un estudio de mortalidad por cáncer de pulmón en Ohio realizado entre 1968 y 1978 a nivel de condado. La base de datos `ohiolung` contiene información para los 88 condados del estado de Ohio, (EE. UU.). La base de datos proviene del GeoDa (Center for Geospatial Analysis and Computation) y presenta 42 variables. En las estas se presentan datos referentes a la mortalidad por cáncer de pulmón estratificada por género (masculino/femenino) y raza (blanca/negra), junto variables geográficas básicas.
 
 La siguiente tabla resume las variables principales de la base de datos:
 
 ```{r tabla1, echo=FALSE, message=FALSE, warning=FALSE}
-library(sf)
-library(dplyr)
-library(kableExtra)
-library(knitr)
-
 variables <- data.frame(
   Variable = c("CountyID", "NAME", "FIPSNO", "AREA", "PERIMETER", "RECORD_ID", "COUNTYID",
                "LGRyy", "POPGRyy", "LGyy", "POPGyy"),
@@ -61,7 +103,7 @@ knitr::kable(variables, caption = "Definición de variables principales en la ba
   kable_styling(
     font_size = 10,  # Tamaño de fuente reducido
     latex_options = c("striped", "scale_down"),  # Escalado automático
-    full_width = FALSE
+    full_width = FALSE,  # Ancho ajustado al contenido
   ) %>%
   column_spec(2, width = "10cm") %>% # Ancho específico para descripción
  column_spec(1, bold = TRUE) # Ancho específico para variable
@@ -70,11 +112,9 @@ knitr::kable(variables, caption = "Definición de variables principales en la ba
 
 ```
 Se realizó una modificación del formato de la tabla para poder trabajar con las variables sexó (Femenino, Masculino), año(1968, 1978, 1988) y raza (Blanco, Negro)
+
 ```{r formato largo, echo=FALSE, message=FALSE, warning=FALSE}
 ohlung <- st_read("ohiolung/ohlung.shp", quiet = TRUE) 
-
-ohlung$casos_totales <- rowSums(
-  ohlung[, c("LM68", "LF68", "LM78", "LF78", "LM88", "LF88")] %>% sf::st_drop_geometry())
 
 ohlung$casos_totales68 <- rowSums(
   ohlung[, c("LM68", "LF68")] %>% sf::st_drop_geometry())
@@ -84,9 +124,6 @@ ohlung$casos_totales78 <- rowSums(
 
 ohlung$casos_totales88 <- rowSums(
   ohlung[, c("LM88", "LF88")] %>% sf::st_drop_geometry())
-
-ohlung$pop_total <- rowSums(
-  ohlung[, c("POPM68", "POPF68", "POPM78", "POPF78", "POPM88", "POPF88")] %>% sf::st_drop_geometry())
 
 ohlung$pop_total68 <- rowSums(
   ohlung[, c("POPM68", "POPF68")] %>% sf::st_drop_geometry())
@@ -108,6 +145,33 @@ ohlung$cambio_68_88 <- ohlung$tasa_88 - ohlung$tasa_68
 ohlung$cambio_78_88 <- ohlung$tasa_88 - ohlung$tasa_78
 
 ohlung$cambio_68_78 <- ohlung$tasa_78 - ohlung$tasa_68
+
+
+
+# medidas por raza
+
+ohlung$tasa_white_68 <- rowSums(ohlung[,c('LMW68','LFW68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW68','POPFW68')]%>% sf::st_drop_geometry())
+
+ohlung$tasa_black_68 <- rowSums(ohlung[,c('LMB68','LFB68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB68','POPFB68')]%>% sf::st_drop_geometry())
+
+ohlung$tasa_white_78 <- rowSums(ohlung[,c('LMW78','LFW78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW78','POPFW78')]%>% sf::st_drop_geometry())
+
+ohlung$tasa_black_78 <- rowSums(ohlung[,c('LMB78','LFB78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB78','POPFB78')]%>% sf::st_drop_geometry())
+
+ohlung$tasa_white_88 <- rowSums(ohlung[,c('LMW88','LFW88')] %>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW88','POPFW88')] %>% sf::st_drop_geometry())
+
+ohlung$tasa_black_88 <- rowSums(ohlung[,c('LMB88','LFB88')] %>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB88','POPFB88')] %>% sf::st_drop_geometry())
+
+# medida por genero
+
+ohlung$tasa_mujer_68 <- ohlung$LF68 / ohlung$POPF68
+ohlung$tasa_hombre_68 <- ohlung$LM68 / ohlung$POPM68
+
+ohlung$tasa_mujer_78 <- ohlung$LF78 / ohlung$POPF78
+ohlung$tasa_hombre_78 <- ohlung$LM78 / ohlung$POPM78
+
+ohlung$tasa_mujer_88 <- ohlung$LF88 / ohlung$POPF88
+ohlung$tasa_hombre_88 <- ohlung$LM88 / ohlung$POPM88
 
 
 ohlung_long <- ohlung %>%
@@ -137,7 +201,11 @@ ohlung_long <- ohlung %>%
     year   = as.factor(year)
   ) %>% arrange(COUNTYID)
 
-knitr::kable(head(ohlung_long, 10), caption = "Vista de los datos en formato largo")
+ohlung_long %>% 
+  sf::st_drop_geometry() %>% # 1. Quita la columna de mapas (geometría)
+  dplyr::select(-any_of(c("COUNTYID", "geometry"))) %>% # 2. Quita IDs
+  head(10) %>% 
+  knitr::kable(caption = "Vista de los datos en formato largo ")
 ```
 ```{r conteos iguales a 0, echo=FALSE}
 ohlung_long %>%
@@ -148,30 +216,31 @@ ohlung_long %>%
 ```
 Notese que tenemos de 1056 observaciones, 386 son 0 casos, esto puede representar un problema más adelante en los modelos, ya que puede tender a inflar la varianza.
 
-```{r include=FALSE}
-ohlung$tasa_white_68 <- rowSums(ohlung[,c('LMW68','LFW68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW68','POPFW68')]%>% sf::st_drop_geometry()) 
-ohlung$tasa_black_68 <- rowSums(ohlung[,c('LMB68','LFB68')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB68','POPFB68')]%>% sf::st_drop_geometry()) 
+# Exploración descriptiva
 
-ohlung$tasa_white_78 <- rowSums(ohlung[,c('LMW78','LFW78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW78','POPFW78')]%>% sf::st_drop_geometry()) 
-ohlung$tasa_black_78 <- rowSums(ohlung[,c('LMB78','LFB78')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB78','POPFB78')]%>% sf::st_drop_geometry()) 
+```{r descriptiva categoricas, echo=FALSE, fig.height=4.5, fig.width=10}
+par(mfrow=c(1,3))
 
-ohlung$tasa_white_88 <- rowSums(ohlung[,c('LMW88','LFW88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMW88','POPFW88')]%>% sf::st_drop_geometry()) 
-ohlung$tasa_black_88 <- rowSums(ohlung[,c('LMB88','LFB88')]%>% sf::st_drop_geometry()) / rowSums(ohlung[,c('POPMB88','POPFB88')]%>% sf::st_drop_geometry()) 
-```
+# --- AÑO 68 ---
+boxplot(ohlung$tasa_white_68, ohlung$tasa_black_68, 
+        col = c("lightblue", "lightpink"), 
+        names = c("White", "Black"),
+        main = "Año 1968",
+        outline = TRUE, las = 2)
 
+# --- AÑO 78 ---
+boxplot(ohlung$tasa_white_78, ohlung$tasa_black_78, 
+        col = c("lightblue", "lightpink"), 
+        names = c("White", "Black"),
+        main = "Año 1978",
+        outline = TRUE, las = 2)
 
-
-```{r descriptiva categoricas, echo=FALSE, fig.height=7, fig.width=10}
-par(mfrow=c(1,2), bg = 'antiquewhite3')
-boxplot(ohlung$tasa_white_68, col = "lightblue", main = "Año 68")
-boxplot(ohlung$tasa_black_68, col = "pink" )
-legend('topright',lty = 1:2,legend = c("White", 'Black'), col = c('lightblue','pink'))
-boxplot(ohlung$tasa_white_78, col = "lightblue", main = "Año 68")
-boxplot(ohlung$tasa_black_78, col = "pink")
-legend('topright',lty = 1:2,legend = c("White", 'Black'), col = c('lightblue','pink'))
-boxplot(ohlung$tasa_white_88, col = "lightblue", main = "Año 68")
-boxplot(ohlung$tasa_black_88, col = "pink")
-legend('topright',lty = 1:2,legend = c("White", 'Black'), col = c('lightblue','pink'))
+# --- AÑO 88 ---
+boxplot(ohlung$tasa_white_88, ohlung$tasa_black_88, 
+        col = c("lightblue", "lightpink"), 
+        names = c("White", "Black"),
+        main = "Año 1988",
+        outline = TRUE, las = 2)
 
 tabla_conteos <- dplyr::bind_rows(ohlung_long %>% 
              dplyr::group_by(categoria=gender) %>% 
@@ -186,17 +255,33 @@ tabla_conteos <- dplyr::bind_rows(ohlung_long %>%
 knitr::kable(tabla_conteos,
              caption = "Tasas de incidencia por variable categórica")
 ```
-En el primer gráfico
+Podemos evidenciar que a lo largo de los años en la población negra se presenta mayor variación que en la población blanca, además de que se presenta una diferencia notoria en ambos grupos en los 3 años.
 
-```{r}
-plot(ohlung$pop_total,ohlung$casos_totales, col = 'antiquewhite3')
-plot(ohlung$pop_total68,ohlung$casos_totales68, col = 'antiquewhite3')
-plot(ohlung$pop_total78,ohlung$casos_totales78, col = 'antiquewhite3')
-plot(ohlung$pop_total88,ohlung$casos_totales88, col = 'antiquewhite3')
+```{r plots regresion, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+# unir graficos en una sola ventana
+grid.arrange(
+  ggplot(ohlung, aes(x = pop_total68, y = casos_totales68)) +
+    geom_point(color = 'antiquewhite3') +
+    geom_smooth(method = "lm", se = FALSE, color = "red") +
+    labs(title = "Relación entre población total y casos totales en 1968"),
+  
+  ggplot(ohlung, aes(x = pop_total78, y = casos_totales78)) +
+    geom_point(color = 'antiquewhite3') +
+    geom_smooth(method = "lm", se = FALSE, color = "green") +
+    labs(title = "Relación entre población total y casos totales en 1978"),
+  
+  ggplot(ohlung, aes(x = pop_total88, y = casos_totales88)) +
+    geom_point(color = 'antiquewhite3') +
+    geom_smooth(method = "lm", se = FALSE, color = "purple") +
+    labs(title = "Relación entre población total y casos totales en 1988"),
+  
+  nrow = 2
+)
+
 ```
 En general los totales de casos y poblaciones en los distintos años se comportan de manera lineal.
 
-```{r}
+```{r plots categoricas, echo=FALSE, fig.height=6, fig.width=10}
 casos_condado <- ohlung_long %>% 
   group_by(NAME,year,gender) %>%
   summarise(tasas = sum(cases/pop, na.rm = TRUE), .groups = "drop")
@@ -231,7 +316,7 @@ ggplot(
 ```
 Podemos ver más registros o casos en los hombres que en las mujeres en los distintos años y condados.
 
-```{r}
+```{r table top condados, echo=FALSE}
 top_condados2 <-  ohlung_long %>%  
   group_by(NAME) %>%
   summarise(total_tasas = sum(cases/pop, na.rm = TRUE),
@@ -241,14 +326,54 @@ top_condados2 <-  ohlung_long %>%
 knitr::kable(top_condados2, caption = "Top 15 condados con tasas más altas")
 ```
 
-## Exploración espacial
+# Exploración espacial
 
-```{r}
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("tasa_68", palette="Reds"),
-  tm_shape(ohlung) + tm_fill("tasa_78",palette="Reds"),
-  tm_shape(ohlung) + tm_fill("tasa_88",palette="Reds")
-)
+```{r Mapas tasas, echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_68", palette="Reds"),
+#   tm_shape(ohlung) + tm_fill("tasa_78",palette="Reds"),
+#   tm_shape(ohlung) + tm_fill("tasa_88",palette="Reds")
+# )
+
+# uniendo la escala de los mapas
+
+
+# 1. ENCONTRAR EL RANGO TOTAL AUTOMÁTICAMENTE
+# Buscamos el valor máximo entre todas las tasas para que la escala sea la misma
+todas_las_tasas <- c(ohlung$tasa_68, ohlung$tasa_78, ohlung$tasa_88)
+
+# 2. FUNCIÓN AUTOMATIZADA
+crear_mapa <- function(variable, titulo, paleta) {
+  tm_shape(ohlung) + 
+    tm_polygons(variable, 
+                palette = paleta,
+                style = "fisher", 
+                n = 6, 
+                border.col = "white",
+                lwd = 0.3) + 
+    tm_layout(main.title = titulo, 
+              main.title.size = 1.2,
+              main.title.position = "center", # Centra el título sobre el mapa
+              inner.margins = c(0.02, 0.02, 0.001, 0.02), # Reduce espacio extra
+              legend.show = FALSE,
+              frame = FALSE)
+}
+
+# 3. CREAR MAPAS (Igual que antes pero ahora son automáticos)
+m_w68 <- crear_mapa("tasa_68", "Año 1968", "GnBu")
+m_w78 <- crear_mapa("tasa_78", "Año 1978", "GnBu")
+m_w88 <- crear_mapa("tasa_88", "Año 1988", "GnBu")
+
+leyenda_final <- tm_shape(ohlung) + 
+  tm_polygons("tasa_88", palette = "YlGnBu", style = "fisher", n = 6, 
+              title = "Tasa de\nMortalidad") + 
+  tm_layout(legend.only = TRUE, 
+            legend.position = c("left", "center"), # La pega más al mapa previo
+            legend.text.size = 0.8,
+            legend.title.size = 0.9)
+# 5. RESULTADO
+tmap_arrange(m_w68, m_w78, m_w88, leyenda_final, 
+             nrow = 1, widths = c(0.3, 0.3, 0.3, 0.15))
 
 ```
 
@@ -256,122 +381,136 @@ Podemos ver que en los años se ha presentado un aumento de la tasa de incidenci
 
 
 
-```{r}
-tmap_arrange(
-  tm_shape(ohlung) + tm_fill("cambio_68_88"),
-  tm_shape(ohlung) + tm_fill("cambio_68_78"),
-  tm_shape(ohlung) + tm_fill("cambio_78_88")
-  
-)
+```{r Mapas cambios, echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("cambio_68_88"),
+#   tm_shape(ohlung) + tm_fill("cambio_68_78"),
+#   tm_shape(ohlung) + tm_fill("cambio_78_88")
+#   )
+
+# Uniendo la escala de los mapas
+# Buscamos el valor máximo entre todas las tasas para que la escala sea la misma
+todas_las_tasas <- c(ohlung$cambio_68_88, ohlung$cambio_68_78, ohlung$cambio_78_88)
+
+# 3. CREAR MAPAS (Igual que antes pero ahora son automáticos)
+m_w68 <- crear_mapa("cambio_68_88", "tasa 1988 - tasa 1968", "PuBuGn")
+m_w78 <- crear_mapa("cambio_68_78", "tasa 1978 - tasa 1968", "PuBuGn")
+m_w88 <- crear_mapa("cambio_78_88", "tasa 1988 - tasa 1978", "PuBuGn")
+
+leyenda_final <- tm_shape(ohlung) + 
+  tm_polygons("cambio_78_88", palette = "PuBuGn", style = "fisher", n = 6, 
+              title = "Diferencia de Tasa") + 
+  tm_layout(legend.only = TRUE, 
+            legend.position = c("left", "center"), 
+            legend.text.size = 0.8,
+            legend.title.size = 0.9)
+# 5. RESULTADO
+tmap_arrange(m_w68, m_w78, m_w88, leyenda_final, 
+             nrow = 1, widths = c(0.3, 0.3, 0.3, 0.15))
+
 ```
 En este se realizó una diferencia de las tasas en los años, tal diferencia significa que si es positiva quiere decir que aumento, y si es negativa quiere decir que disminuyó. Podemos ver que comparando las tasas de los años de 1968 y 1988, casi no hay tasas negativas, lo que indica que en general entre 1968 y 1988 hubo un aumento de casos de cancer de pulmón. Por otro lado comparando los años 1968 y 1978, podemos ver más condados con tasas negativas, lo que indica que hubo una disminución, esto es importante porque si bien vimos en el anterior mapa que la tasa aumentaba conforme los años, no quiere decir que en todos los contados hubo un aumento. Por último entre los años 1978 y 1988 podemos ver que fueron más constantes las tasas, es decir que no hubo un aumento  signficativo en la mayoría de condados (resaltados por el verde claro), además tambien podemos ver que hay tasas que siguieron disminuyendo (morado).
 
 
-```{r}
+
+```{r Mapas por raza, echo=FALSE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_white_68"),
+#   tm_shape(ohlung) + tm_fill("tasa_black_68")
+# )
+# 
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_white_78"),
+#   tm_shape(ohlung) + tm_fill("tasa_black_78")
+# )
+# 
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_white_88"),
+#   tm_shape(ohlung) + tm_fill("tasa_black_88")
+# )
+
+
 # 1. ENCONTRAR EL RANGO TOTAL AUTOMÁTICAMENTE
 # Buscamos el valor máximo entre todas las tasas para que la escala sea la misma
 todas_las_tasas <- c(ohlung$tasa_white_68, ohlung$tasa_white_78, ohlung$tasa_white_88,
                      ohlung$tasa_black_68, ohlung$tasa_black_78, ohlung$tasa_black_88)
 max_val <- max(todas_las_tasas, na.rm = TRUE)
 
-# 2. FUNCIÓN AUTOMATIZADA
-crear_mapa <- function(variable, titulo) {
-  tm_shape(ohlung) + 
-    tm_polygons(variable, 
-                palette = "Blues",
-                # 'style = "fisher"' crea cortes naturales optimizados
-                style = "fisher", 
-                n = 6, # Queremos 6 niveles de azul
-                border.col = "white",
-                lwd = 0.5) + 
-    tm_layout(main.title = titulo, 
-              main.title.size = 0.7, 
-              legend.show = FALSE,
-              frame = FALSE)
-}
-
 # 3. CREAR MAPAS (Igual que antes pero ahora son automáticos)
-m_w68 <- crear_mapa("tasa_white_68", "Blanca 1968")
-m_w78 <- crear_mapa("tasa_white_78", "Blanca 1978")
-m_w88 <- crear_mapa("tasa_white_88", "Blanca 1988")
+m_w68 <- crear_mapa("tasa_white_68", "Blanca 1968", "BuGn")
+m_w78 <- crear_mapa("tasa_white_78", "Blanca 1978", "BuGn")
+m_w88 <- crear_mapa("tasa_white_88", "Blanca 1988", "BuGn")
 
-m_b68 <- crear_mapa("tasa_black_68", "Negra 1968")
-m_b78 <- crear_mapa("tasa_black_78", "Negra 1978")
-m_b88 <- crear_mapa("tasa_black_88", "Negra 1988")
+m_b68 <- crear_mapa("tasa_black_68", "Negra 1968", "BuGn")
+m_b78 <- crear_mapa("tasa_black_78", "Negra 1978", "BuGn")
+m_b88 <- crear_mapa("tasa_black_88", "Negra 1988", "BuGn")
 
 # 4. LEYENDA AUTOMÁTICA
 # Usamos el mapa que tenga más variabilidad para generar la leyenda
 leyenda_final <- tm_shape(ohlung) + 
-  tm_polygons("tasa_black_88", palette = "Blues", style = "fisher", n = 6,
-              border.col = "white") + 
-  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
+  tm_polygons("tasa_black_78", palette = "BuGn", style = "fisher", n = 6,
+              border.col = "white",
+              title = "Tasa de \nMortalidad") + 
+  tm_layout(legend.only = TRUE, 
+            legend.position = c("left", "center"), 
+            legend.text.size = 0.8,
+            legend.title.size = 0.9)
 
 # 5. RESULTADO
-tmap_arrange(m_w68, m_w78, m_w88, 
+tmap_arrange(m_w68, m_w78, m_w88, leyenda_final,
              m_b68, m_b78, m_b88, 
-             leyenda_final,
-             nrow = 3, ncol = 3, asp = 0)
-
-
+             nrow = 2, ncol = 4, asp = 0)
 ```
 
 Algo notorio que podemos observar, es la tasa constante de las personas negras con cancer de pulmón en el mapa de cada año, es decir, que no hay tanta varianción entre condados, también se ve que las tasas de la población negra son mayores que las tasas de la población blanca, además con el paso de los años aumenta.
 
 En general se ve un aumento en las tasas de cancer de pulmón, más notoriamente en la población de blancos que en la población de negros.
 
-```{r include=FALSE}
-ohlung$tasa_mujer_68 <- ohlung$LF68 / ohlung$POPF68
-ohlung$tasa_hombre_68 <- ohlung$LM68 / ohlung$POPM68
+```{r Mapa por genero, echo=FALSE, fig.height=8, fig.width=10, message=FALSE, warning=FALSE}
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_mujer_68"),
+#   tm_shape(ohlung) + tm_fill("tasa_hombre_68")
+# )
+# 
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_mujer_78"),
+#   tm_shape(ohlung) + tm_fill("tasa_hombre_78")
+# )
+# 
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_fill("tasa_mujer_88"),
+#   tm_shape(ohlung) + tm_fill("tasa_hombre_88")
+# )
 
-ohlung$tasa_mujer_78 <- ohlung$LF78 / ohlung$POPF78
-ohlung$tasa_hombre_78 <- ohlung$LM78 / ohlung$POPM78
-
-ohlung$tasa_mujer_88 <- ohlung$LF88 / ohlung$POPF88
-ohlung$tasa_hombre_88 <- ohlung$LM88 / ohlung$POPM88
-```
-
-```{r}
-# 1. FUNCIÓN AUTOMATIZADA PARA GÉNERO
-# El estilo "fisher" agrupa los datos de forma inteligente para resaltar clústeres
-crear_mapa_genero <- function(variable, titulo) {
-  tm_shape(ohlung) + 
-    tm_polygons(variable, 
-                palette = "Blues",
-                style = "fisher", 
-                n = 6, 
-                border.col = "white",
-                lwd = 0.5) + 
-    tm_layout(main.title = titulo, 
-              main.title.size = 0.8, 
-              main.title.position = "center",
-              legend.show = FALSE,
-              frame = FALSE)
-}
 
 # 2. CREAR LOS 6 MAPAS (3 años x 2 géneros)
 # Fila 1: Mujeres
-m_f68 <- crear_mapa_genero("tasa_mujer_68", "Mujeres 1968")
-m_f78 <- crear_mapa_genero("tasa_mujer_78", "Mujeres 1978")
-m_f88 <- crear_mapa_genero("tasa_mujer_88", "Mujeres 1988")
+m_f68 <- crear_mapa("tasa_mujer_68", "Mujeres 1968", "YlGn")
+m_f78 <- crear_mapa("tasa_mujer_78", "Mujeres 1978", "YlGn")
+m_f88 <- crear_mapa("tasa_mujer_88", "Mujeres 1988", "YlGn")
 
 # Fila 2: Hombres
-m_h68 <- crear_mapa_genero("tasa_hombre_68", "Hombres 1968")
-m_h78 <- crear_mapa_genero("tasa_hombre_78", "Hombres 1978")
-m_h88 <- crear_mapa_genero("tasa_hombre_88", "Hombres 1988")
+m_h68 <- crear_mapa("tasa_hombre_68", "Hombres 1968", "YlGn")
+m_h78 <- crear_mapa("tasa_hombre_78", "Hombres 1978", "YlGn")
+m_h88 <- crear_mapa("tasa_hombre_88", "Hombres 1988", "YlGn")
 
 # 3. LEYENDA ÚNICA
 # Usamos uno de los mapas de hombres para la escala, ya que suelen tener valores más altos
 leyenda_genero <- tm_shape(ohlung) + 
-  tm_polygons("tasa_hombre_88", palette = "Blues", style = "fisher", n = 6,
-              border.col = "white") + 
-  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
+  tm_polygons("tasa_hombre_88", palette = "YlGn", style = "fisher", n = 6,
+              border.col = "white",
+              title = "Tasa de \nMortalidad") + 
+  tm_layout(legend.only = TRUE, 
+            legend.position = c("left", "center"), 
+            legend.text.size = 0.8,
+            legend.title.size = 0.9)
+
 
 # 4. ORGANIZAR EN CUADRÍCULA (3 Filas x 3 Columnas)
 # Fila 1: Mujeres | Fila 2: Hombres | Fila 3: Leyenda
-tmap_arrange(m_f68, m_f78, m_f88, 
+tmap_arrange(m_f68, m_f78, m_f88, leyenda_genero,
              m_h68, m_h78, m_h88, 
-             leyenda_genero,
-             nrow = 3, ncol = 3, asp = 0)
+             nrow = 2, ncol = 4, asp = 0)
 
 ```
 Podemos ver que en ambos grupos se presenta variación a través de los condados, además de esto los hombres presentan tasas más altas de cancer de pulmón, las cuales aumentan conforme pasan los años.
@@ -406,26 +545,123 @@ colnames(correlacion) <- colnames(cor_numericas)
 kableExtra::kable(correlacion, caption = "Correlación de pearson",
                   digits = 3)
 ```
-Lo que podemos destacar de la tabla es:
+```{r correlaciones_3columnas, echo=FALSE, message=FALSE, warning=FALSE, results='asis'}
 
-* Podemos evidenciar que área y perímetro solo tienen una fuerte correlación lineal entre ellas, mientras que con el resto de las variables (incluyendo la variable respuesta) presentan una correlación baja, por lo que no serán selecionadas para el modelo.
+# 1. Preparar datos numéricos
+numericas <- ohlung %>%
+  sf::st_drop_geometry() %>%
+  dplyr::select(where(is.numeric)) %>%
+  dplyr::select(-any_of(c("COUNTYID", "FIPSNO", "RECORD_ID", "NAME")))
 
-* Las variables explicativas originales presentan alta correlación entre sí, por lo que solo se conservará variables que guarden la información de sexo, y raza.
+# 2. Calcular correlaciones y estructurar
+cor_df <- cor(numericas, use = "complete.obs") %>%
+  as.data.frame() %>%
+  tibble::rownames_to_column("Var_A") %>%
+  pivot_longer(-Var_A, names_to = "Var_B", values_to = "r") %>%
+  filter(Var_A < Var_B) %>%                  # Sin duplicados ni diagonal
+  filter(abs(r) >= 0.5) %>%                  # Umbral de fuerza (ajustable)
+  arrange(desc(abs(r))) %>%
+  slice_head(n = 60) %>%                     # Top 30
+  mutate(
+    grupo = case_when(row_number() <= 20 ~ 1,
+                      row_number() <= 40 ~ 2,
+                      TRUE ~ 3),
+    r_fmt = sprintf("%.3f", r),
+    color = ifelse(r > 0, "#d73027", "#4575b4")
+  )
+
+# 3. Función para generar kables limpios
+crear_kable <- function(df, titulo) {
+  df %>%
+    # Mantenemos 'color' en el select para que cell_spec pueda leerlo
+    dplyr::select(Var_A, Var_B, r_fmt, color) %>%
+    dplyr::mutate(r_fmt = kableExtra::cell_spec(r_fmt, bold = TRUE, color = color)) %>%
+    dplyr::select(-color) %>%
+    kableExtra::kbl(booktabs = TRUE,
+                    col.names = c("Var. A", "Var. B", "r"),
+                    caption = titulo,
+                    escape = FALSE) %>%
+    kableExtra::kable_styling(full_width = FALSE,
+                              latex_options = c("striped", "scale_down"), font_size = 9,
+                              position = "center") %>%
+    as.character()
+}
 
 
-# Evaluación y Selección de la Matriz $W$
-La elección de $W$ no es arbitraria; se debe seleccionar aquella que maximice la captura de la dependencia espacial en los datos de 1988.
+tbls <- split(cor_df, cor_df$grupo)
+k1 <- crear_kable(tbls[[1]], "Top 1–10")
+k2 <- crear_kable(tbls[[2]], "Top 11–20")
+k3 <- crear_kable(tbls[[3]], "Top 21–30")
+
+# 4. Envoltorio automático según formato de salida
+fmt <- knitr::opts_knit$get("rmarkdown.pandoc.to")
+
+if (is.null(fmt) || grepl("html", fmt)) {
+  # HTML: Flexbox responsivo
+  cat('<div style="display: flex; gap: 12px; flex-wrap: wrap; justify-content: center; margin: 1em 0;">\n')
+  cat(k1, k2, k3, sep = "\n")
+  cat('</div>\n')
+  
+} else if (grepl("latex|pdf", fmt)) {
+  # PDF/LaTeX: Minipages con alineación segura
+  # Eliminamos saltos de línea internos que suelen romper minipage en LaTeX
+  k1 <- gsub("\n", " ", k1)
+  k2 <- gsub("\n", " ", k2)
+  k3 <- gsub("\n", " ", k3)
+  
+  cat("\\begin{table}[htbp]\n\\centering\n")
+  cat("\\begin{minipage}[t]{0.31\\textwidth}\n\\centering\n", k1, "\\end{minipage}\n")
+  cat("\\hfill\n")
+  cat("\\begin{minipage}[t]{0.31\\textwidth}\n\\centering\n", k2, "\\end{minipage}\n")
+  cat("\\hfill\n")
+  cat("\\begin{minipage}[t]{0.31\\textwidth}\n\\centering\n", k3, "\\end{minipage}\n")
+  cat("\\end{table}\n")
+  
+} else {
+  # Fallback para Markdown puro o Word
+  cat(k1, "\n\n---\n\n", k2, "\n\n---\n\n", k3, "\n")
+}
+```
 
 
-Según el sustento teórico, la matriz de pesos puede basarse en la similitud de una variable $X$ altamente relacionada con la respuesta $Z$. Para esto, definimos $w_{ij} = 1/(x_i - x_j)$, donde $x$ es la variable con mayor correlación con la tasa de cáncer de 1988. 
 
-Se evalúan cuatro tipos de estructuras:
+```{r correlograma, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+# 1. Seleccionamos las variables clave para no saturar
+# vars_interes <- c("tasa_88", "tasa_78", "tasa_68", "tasa_white_88", "tasa_black_88", 
+#                   "tasa_hombre_88", "tasa_mujer_88", "casos_totales68", "casos_totales78", "casos_totales88",
+#                   "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78",
+#                   "tasa_white_68", "tasa_black_68", "tasa_white_78", "tasa_black_78", "tasa_white_88",
+#                   "tasa_black_88", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", "tasa_hombre_78",
+#                   "tasa_mujer_88", "tasa_hombre_88"
+#                   )   
+vars_interes <- c('AREA','PERIMETER',"tasa_white_78", "tasa_black_78", 
+                  "tasa_hombre_78", "tasa_mujer_88", "casos_totales68", "casos_totales78", "pop_total68", "pop_total78",  "cambio_68_78"
+                  )   
 
-*   **Contigüidad Física:** Rook (Torre) y Queen (Reina).
+matriz_cor <- cor(st_drop_geometry(ohlung[, vars_interes]), use = "complete.obs")
 
-*   **Basadas en Distancia:** $k$-vecinos más cercanos con $k=3,4,5, 6,7, 8, 9, 10$.
+# 2. Dibujar el Correlograma
+par(bg = "white")
+corrplot(matriz_cor, 
+         method = "color", 
+         type = "upper", 
+         order = "hclust", # Agrupa variables similares
+         addCoef.col = "black", # Muestra el número
+         tl.col = "black", tl.srt = 45, # Etiquetas
+         col = brewer.pal(n = 8, name = "RdBu"), # Rojo (negativo) a Azul (positivo)
+         diag = FALSE,
+         title = "\nRelación entre Tasas de Cáncer y Demografía",
+         mar = c(0,0,1,0))
 
-*   **Basada en Atributos:** Ponderación por diferencia de tasas históricas (similitud epidemiológica).
+numericas <- ohlung %>% dplyr::select(tasa_white_88, tasa_black_88, tasa_hombre_88,  tasa_mujer_88, casos_totales68, casos_totales78, casos_totales88,
+                  pop_total68, pop_total78, pop_total88, cambio_78_88, cambio_68_88, cambio_68_78) %>% 
+  sf::st_drop_geometry()
+pairs.panels(numericas)
+```
+Podemos destacar que *AREA* y *PERIMETER* presentan una correlación lineal alta entre ellas, pero no son las únicas variables, además de eso tambien tenemos una correlación lineal perfecta entre la población total de 1968 (*pop_total68*) y la población total de 1978 (*pop_total78*)
+
+En cuanto a la variable respuesta, esta presenta correlaciones bajas con el resto de las variables.
+
 
 ```{r matriz W, include=FALSE}
 
@@ -523,50 +759,28 @@ knn3_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 3)), style = "W", zero.policy
 knn4_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 4)), style = "B", zero.policy = TRUE)
 knn4_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 4)), style = "W", zero.policy = TRUE)
 
-knn5_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 5)), style = "B", zero.policy = TRUE)
-knn5_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 5)), style = "W", zero.policy = TRUE)
-
-knn6_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 6)), style = "B", zero.policy = TRUE)
-knn6_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 6)), style = "W", zero.policy = TRUE)
-
-knn7_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 7)), style = "B", zero.policy = TRUE)
-knn7_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 7)), style = "W", zero.policy = TRUE)
-
-knn8_nb_b <- nb2listw(knn2nb(knearneigh(xy_sp, k = 8)), style = "B", zero.policy = TRUE)
-knn8_nb_w <- nb2listw(knn2nb(knearneigh(xy_sp, k = 8)), style = "W", zero.policy = TRUE)
-
+#- Graficos matrices k vecinos mas cercanos ----  
+# Crear nb (si no los tienes)
+knn1_nb <- knn2nb(knearneigh(xy_sp, k = 1))
+knn2_nb <- knn2nb(knearneigh(xy_sp, k = 2))
+knn3_nb <- knn2nb(knearneigh(xy_sp, k = 3))
+knn4_nb <- knn2nb(knearneigh(xy_sp, k = 4))
 
 plot(st_geometry(ohlung), border = "gray")
-plot(knn1_nb_w, coords, add = TRUE, col = "red")
+plot(knn1_nb, coords, add = TRUE, col = "red")
 title("k = 1")
 
 plot(st_geometry(ohlung), border = "gray")
-plot(knn2_nb_w, coords, add = TRUE, col = "blue")
+plot(knn2_nb, coords, add = TRUE, col = "blue")
 title("k = 2")
 
 plot(st_geometry(ohlung), border = "gray")
-plot(knn3_nb_w, coords, add = TRUE, col = "green")
+plot(knn3_nb, coords, add = TRUE, col = "green")
 title("k = 3")
 
 plot(st_geometry(ohlung), border = "gray")
-plot(knn4_nb_w, coords, add = TRUE, col = "orange")
+plot(knn4_nb, coords, add = TRUE, col = "orange")
 title("k = 4")
-
-plot(st_geometry(ohlung), border = "gray")
-plot(knn5_nb_w, coords, add = TRUE, col = "red")
-title("k = 5")
-
-plot(st_geometry(ohlung), border = "gray")
-plot(knn6_nb_w, coords, add = TRUE, col = "blue")
-title("k = 6")
-
-plot(st_geometry(ohlung), border = "gray")
-plot(knn7_nb_w, coords, add = TRUE, col = "green")
-title("k = 7")
-
-plot(st_geometry(ohlung), border = "gray")
-plot(knn8_nb_w, coords, add = TRUE, col = "orange")
-title("k = 8")
 
 
 #----------------------------------------------------------------
@@ -581,14 +795,10 @@ mat <- list(
   soi_nb_b, soi_nb_w,
   gabriel_nb_b, gabriel_nb_w,
   relative_nb_b, relative_nb_w,
-  knn1_nb_w, knn1_nb_b,
-  knn2_nb_w, knn2_nb_b,
-  knn3_nb_w, knn3_nb_b,
-  knn4_nb_w, knn4_nb_b,
-  knn5_nb_w, knn5_nb_b,
-  knn6_nb_w, knn6_nb_b,
-  knn7_nb_w, knn7_nb_b,
-  knn8_nb_w, knn8_nb_b
+  knn1_nb_b, knn1_nb_w,
+  knn2_nb_b, knn2_nb_w,
+  knn3_nb_b, knn3_nb_w,
+  knn4_nb_b, knn4_nb_w
 )
 
 
@@ -600,14 +810,10 @@ names(mat) <- c(
   "soi_b", "soi_w",
   "gabriel_b", "gabriel_w",
   "relative_b", "relative_w",
-  "knn1_W", "knn1_b",
-  "knn2_W", "knn2_b",
-  "knn3_W", "knn3_b",
-  "knn4_W", "knn4_b",
-  "knn5_W", "knn5_b",
-  "knn6_W", "knn6_b",
-  "knn7_W", "knn7_b",
-  "knn8_W", "knn8_b"
+  "knn1_b", "knn1_w",
+  "knn2_b", "knn2_w",
+  "knn3_b", "knn3_w",
+  "knn4_b", "knn4_w"
 )
 
 aux_p <- numeric(length(mat)) # Vector numérico vacío para los p-values 
@@ -615,7 +821,7 @@ aux_I <- numeric(length(mat)) # Vector numérico vacío para los indiced e moran
 
 # Recorre TODAS las matrices W y calcula Moran para cada una.
 for(i in seq_along(mat)){
-  test <- moran.test(ohlung$tasa_88, mat[[i]], alternative = "two.sided")
+  test <- moran.test(ohlung$casos_totales88/ohlung$pop_total88, mat[[i]], alternative = "two.sided")
   
   aux_p[i] <- test$p.value
   aux_I[i] <- test$estimate[1]   # Moran's I
@@ -634,16 +840,125 @@ resultados_w <- data.frame(
 kableExtra::kable(resultados_w[order(resultados_w$p_value), ],
       digits = 3)
 
+```
+
+De acuerdo con la tabla, podemos ver en la mayoría (16 de 20) el valor p es menor al nivel de significancia ($\alpha=0.05$), por lo cual se rechaza la hipotesis nula de independencia espacial, lo cual evidencia correlación espacial en los datos, teniendo en cuenta que hubo casos específicos en los que no se rechaza esa hipótesis nula, puede entenderse como que no en todas las configuraciones la dependencia espacial es consistente.
+
+
+##  Selección de Variables
+
+Para modelar los datos de área de forma adecuada, la estructura del modelo debe seguir una lógica epidemiológica de conteo:
+
+## Evaluación y Selección de la Matriz $W$
+
+La elección de $W$ no es arbitraria; se debe seleccionar aquella que maximice la captura de la dependencia espacial en los datos de 1988.
+
+
+Según el sustento teórico, la matriz de pesos puede basarse en la similitud de una variable $X$ altamente relacionada con la respuesta $Z$. Para esto, definimos $w_{ij} = 1/(x_i - x_j)$, donde $x$ es la variable con mayor correlación con la tasa de cáncer de 1988. 
+
+Se evalúan cuatro tipos de estructuras:
+
+*   **Contigüidad Física:** Rook (Torre) y Queen (Reina).
+
+*   **Basadas en Distancia:** $k$-vecinos más cercanos con $k=3,4,5, 6,7, 8, 9, 10$.
+
+*   **Basada en Atributos:** Ponderación por diferencia de tasas históricas (similitud epidemiológica).
+
+
+```{r seleccion_w, echo=FALSE, message=FALSE, warning=FALSE}
+#----------------------------------------------------------------
+# 1. Preparación y Limpieza de Memoria ----
+#----------------------------------------------------------------
+# Borrar objetos pesados innecesarios para liberar RAM
+# rm(list = setdiff(ls(), c("ohlung", "casos_condado"))) 
+
+# Lista de variables candidatas para ponderar la matriz W
+vars_candidatas <- c( "tasa_white_88", "tasa_black_88", "casos_totales68", "casos_totales78", "casos_totales88", "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78") 
+
+#----------------------------------------------------------------
+# 2. Selección de Variable para Ponderación de W ----
+#----------------------------------------------------------------
+# Evaluamos cuál variable tiene mayor correlación con Y para la ponderación
+cor_resultados <- cor(ohlung$tasa_mujer_88, st_drop_geometry(ohlung[, vars_candidatas]), 
+                      use = "complete.obs") %>% 
+                  as.data.frame() %>% 
+                  pivot_longer(everything(), names_to = "Variable", values_to = "Correlacion")
+
+#----------------------------------------------------------------
+# 3. Creación de Matrices W Candidatas ----
+#----------------------------------------------------------------
+# Usamos una lista para procesar matrices de forma iterativa y ahorrar memoria
+matrices_list <- list()
+
+# A. Contigüidad física
+nb_q <- poly2nb(ohlung, queen = TRUE)
+# Alternativamente, usa diferentes estilos de ponderación
+matrices_list$Insumo.lw <- nb2listw(nb_q, zero.policy = TRUE )
+matrices_list$Insumo.lwb <- nb2listw(nb_q, style = "B",zero.policy = TRUE)
+matrices_list$Insumo.lwc <- nb2listw(nb_q, style = "C",zero.policy = TRUE)
+matrices_list$Insumo.lwu <- nb2listw(nb_q, style = "U",zero.policy = TRUE)
+matrices_list$Insumo.lww <- nb2listw(nb_q, style = "W",zero.policy = TRUE) #Queen
+
+# B. K-vecinos más cercanos (k=4, k=5)
+coords <- st_coordinates(st_centroid(ohlung))
+for(k_val in 3:10) {
+  knb <- knn2nb(knearneigh(coords, k = k_val))
+  matrices_list[[paste0("KNN", k_val)]] <- nb2listw(knb, style = "W")
+}
+
+# C. Basada en Atributo (Variable Weighting)
+# Definición: w_ij = 1 / (x_i - x_j)
+# Creamos una matriz de distancias de atributo
+# var_peso_nombre <- cor_resultados$Variable[which.max(abs(cor_resultados$Correlacion))]
+# "tasa_white_88"
+# var_peso_val    <- ohlung[[var_peso_nombre]]
+# dist_attr <- as.matrix(var_peso_val)
+dist_attr <- as.matrix(dist(ohlung[[cor_resultados$Variable[which.max(abs(cor_resultados$Correlacion))]]]))
+# Invertimos la distancia (manejando división por cero en la diagonal)
+w_attr <- 1 / (dist_attr + 1e-10)
+diag(w_attr) <- 0
+# Convertir a formato de lista de pesos (listw) para análisis espacial
+matrices_list$Variable_Weight <- mat2listw(w_attr, style = "W")
+
+#----------------------------------------------------------------
+# 4. Evaluación de Moran Global para Selección Final ----
+#----------------------------------------------------------------
+eval_moran <- data.frame(Matriz = names(matrices_list), Moran_I = NA, p_valor = NA)
+
+for(i in seq_along(matrices_list)) {
+  test <- moran.test(ohlung$tasa_mujer_88, matrices_list[[i]], alternative = "two.sided", zero.policy = TRUE)
+  eval_moran$Moran_I[i]  <- test$estimate
+  eval_moran$p_valor[i]  <- test$p.value
+}
+
+# Ordenar por significancia (p-valor más bajo)
+eval_moran[order(eval_moran$p_valor), ]
+
+
+W_seleccionada <- matrices_list$Variable_Weight
+coords <- st_coordinates(st_centroid(ohlung))
+#. Extraer la lista de vecinos desde el objeto listw
+nb_atributo <- W_seleccionada$neighbours
+# summary(nb_atributo)
 
 ```
-De acuerdo con la tabla, podemos ver en la mayoría (24 de 28) el valor p es menor al nivel de significancia ($\alpha=0.05$), por lo cual se rechaza la hipotesis nula de independencia espacial, lo cual evidencia correlación espacial en los datos, teniendo en cuenta que hubo casos específicos en los que no se rechaza esa hipótesis nula, puede entenderse como que no en todas las configuraciones la dependencia espacial es consistente.
 
-Por otro lado como en este caso estamos manejando condados (regiones) se deicidió optar por usar la matriz de pesos de vecindad por el criterio reina, ya que entre la matriz reina y torre, con pesos y binarias (en cada caso), la matriz de reina con pesos es la que tiene menor p valor.
+Se evaluaron 10 estructuras de vecindad distintas. Todas resultaron significativas (p < 0.05), confirmando la existencia de conglomerados espaciales de cáncer de pulmón. La matriz de 8 vecinos más cercanos (KNN8) fue seleccionada por presentar la mayor significancia estadística (p = 0.00065), seguida por la matriz basada en atributos, lo que sugiere que la cercanía geográfica y la similitud en tasa_78 explican el patrón observado.
 
-```{r mapa_lisa, message=FALSE, warning=FALSE}
+A continuación se presentan los mapas de clústeres LISA utilizando tanto la matriz seleccionada (KNN8).
+
+
+```{r Indice de Moran, echo=FALSE, message=FALSE, warning=FALSE}
+#Pruebas de autocorrelación con indice de moran
+moran.test(ohlung$tasa_mujer_88, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+```
+
+El Test de Moran Global confirma la existencia de una fuerte autocorrelación espacial positiva en la tasa de cáncer de pulmón en mujeres para 1988 (I = 0.258; p-valor < 0.0001). Este resultado demuestra que la enfermedad no se distribuye de forma aleatoria en Ohio, sino que forma clústeres significativos. La intensidad de este índice, mayor a la observada en otros grupos demográficos, sugiere que los factores de riesgo subyacentes tienen una marcada estructura geoespacial o socio-ambiental.
+
+```{r mapa_lisa, echo=FALSE, message=FALSE, warning=FALSE}
 
 # 1. Calculamos el Moran Local usando la matriz ganadora (KNN7)
-local_moran <- localmoran(ohlung$tasa_88, knn8_nb_w, zero.policy = TRUE)
+local_moran <- localmoran(ohlung$tasa_mujer_88, W_seleccionada, zero.policy = TRUE)
 
 # Dividimos el área gráfica en 1 fila y 2 columnas
 grid.newpage()
@@ -652,7 +967,7 @@ pushViewport(viewport(layout = grid.layout(1, 2)))
 
 print_moran_plot <- function() {
   par(mar = c(5, 4, 4, 1), new = FALSE)
-  mp <- moran.plot(ohlung$tasa_88, knn8_nb_w, 
+  mp <- moran.plot(ohlung$tasa_mujer_88, W_seleccionada, 
          labels = as.character(ohlung$NAME), 
          pch = 19, 
          col = "black",          # Puntos normales en negro
@@ -685,8 +1000,8 @@ ohlung$moran_i <- local_moran[,1]     # Índice de Moran local
 ohlung$p_valor <- local_moran[,5]     # P-valor del test local
 
 # 3. Escalar la variable para identificar los cuadrantes (Alto-Alto, Bajo-Bajo, etc.)
-tasa_scale <- scale(ohlung$tasa_88)
-lag_scale <- scale(lag.listw(knn8_nb_w, ohlung$tasa_88))
+tasa_scale <- scale(ohlung$tasa_mujer_88)
+lag_scale <- scale(lag.listw(W_seleccionada, ohlung$tasa_mujer_88))
 
 # 4. Crear las categorías de los clústeres
 ohlung$cluster <- "No Significativo"
@@ -714,7 +1029,7 @@ mapa_lisa <- tm_shape(ohlung) +
   tm_text("etiqueta_lisa", size = 0.6, col = "black", remove.overlap = TRUE) +
   tm_layout(main.title = "B. Mapa de Clústeres (LISA)",
             main.title.size = 1,
-            legend.position = c("left", "bottom"),
+            # legend.position = c("left", "bottom"),
             legend.title.size = 0.8,
             legend.text.size = 0.6,
             frame = FALSE)
@@ -742,73 +1057,147 @@ print(mapa_lisa, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
 El patrón espacial es heterogéneo. Tienes un gradiente claro: un noroeste "sano" (azul) frente a un sur y sureste con focos críticos (rojo). 
 
 
+
 ## 1. Comparación Estructural y Topológica
 Antes de modelar, es vital entender cómo "se ven" las conexiones espaciales. Una matriz de pesos espaciales ($W$) captura el arreglo geométrico de los valores en el mapa. Compararemos la matriz **KNN8** (seleccionada previamente) con una de contigüidad **Reina** para evaluar la densidad de la red.
 
-```{r comparacion_estructural}
+```{r comparacion_estructural, echo=FALSE}
 # 2. Visualización Topológica
 par(mfrow = c(1, 2), mar = c(0, 0, 1, 0))
 plot(st_geometry(ohlung), border = "grey", main = "Contigüidad Reina")
-plot(queen_nb_w, coords, add = TRUE, col = "blue", lwd = 0.5)
+plot(nb_q, coords, add = TRUE, col = "blue", lwd = 0.5)
 
-plot(st_geometry(ohlung), border = "grey", main = "K-Vecinos (k=8)")
-plot(knn8_nb_w, coords, add = TRUE, col = "red", lwd = 0.5)
+plot(st_geometry(ohlung), border = "grey", main = "Ponderada por tasa_mujer_88")
+plot(W_seleccionada, coords, add = TRUE, col = "red", lwd = 0.5)
 
 # # 3. Métricas de conectividad
 # cat("Promedio de vecinos Reina:", mean(card(nb_q)), "\n")
-# cat("Promedio de vecinos KNN8:", mean(card(knn8_nb_w$neighbours)), "\n")
+# cat("Promedio de vecinos KNN8:", mean(card(W_seleccionada$neighbours)), "\n")
 ```
+
+La imagen presenta una comparativa de dos estructuras de conectividad espacial para los condados de Ohio. El mapa de la izquierda, denominado "Contigüidad Reina", muestra una red de conexiones basada en la vecindad física, resultando en una malla local y dispersa. Por el contrario, el mapa de la derecha, la matriz W ponderada por tasa_white_88 , exhibe una red en rojo densamente conectada que vincula a todos los condados entre sí basándose en la similitud (menos interpretable).
 
 ## 2. Diagrama de Dispersión de Moran (Moran Scatterplot)
 Este gráfico visualiza la relación entre el valor de la tasa en un condado ($z_i$) y el promedio ponderado de sus vecinos ($\sum c_{ij}z_j$).
 *   **Cuadrantes I y III:** Representan autocorrelación espacial positiva (Hotspots y Coldspots).
 *   **Cuadrantes II y IV:** Representan autocorrelación negativa (Atípicos espaciales).
 
-```{r moran_scatterplot}
+```{r moran_scatterplot, echo=FALSE}
 # Nota: moran.plot dibuja automáticamente las líneas de los promedios (cuadrantes)
-moran.plot(ohlung$tasa_88, knn8_nb_w, 
+moran.plot(ohlung$tasa_mujer_88, W_seleccionada, 
          labels = as.character(ohlung$NAME), 
          pch = 19, 
          col = "black",          # Puntos normales en negro
          bg = "red",             # Puntos influyentes en rojo
-         xlab = "Tasa de Cáncer 1988", 
-         ylab = "Tasa Rezagada (Promedio Vecinos KNN8)",
+         xlab = "Tasa de Cáncer en mujeres 1988", 
+         ylab = "Tasa Rezagada (Promedio Vecinos Ponderado)",
          main = "Dispersograma de Moran: Cáncer de Pulmón en Ohio (1988)",
          las = 1, 
          cex = 0.7)
 
 # Usamos 'bg' para resaltar los resultados estadísticos
 legend("bottomright", 
-       legend = c("I de Moran: 0.1548", 
-                  "Valor P:    0.00065",
-                  "Matriz:     KNN8"), 
+       legend = c("I de Moran: 0.26", 
+                  "Valor P:    9.51e-07",
+                  "Matriz:  Ponderada por tasa_white_88"), 
        cex = 0.9,
        bg = "#D5F5E3", # Un verde claro profesional
        box.col = "darkgreen",
        inset = 0.02)
 grid(col = "lightgray", lty = "dotted")
 mtext("Cuadrantes: Superior-Derecha (Alto-Alto), Inferior-Izquierda (Bajo-Bajo)", 
-      side = 3, line = -1.0, cex = 0.7, adj = 0.02, col = "darkblue")
+      side = 3, line = -1.5, cex = 0.6, adj = 0.01, col = "darkblue")
 ```
 
-El diagrama de dispersión de Moran muestra una relación lineal positiva, ratificando la existencia de autocorrelación espacial. Se identifican condados como Monroe y Jefferson en el cuadrante Alto-Alto, actuando como núcleos de los clústeres de alta incidencia. Por el contrario, condados como Noble actúan como outliers espaciales, presentando tasas significativamente menores que el promedio de sus vecinos.
+El dispersograma de Moran para 1988 confirma la existencia de un clúster espacial positivo. La concentración de condados en el cuadrante "Alto-Alto" (como Belmont y Jefferson) evidencia la persistencia de focos de alta incidencia, mientras que condados como Henry y Wayne consolidan zonas de baja tasa en el cuadrante "Bajo-Bajo". La significancia estadística (p = ) respalda la validez de estos agrupamientos espaciales.
 
 ## 3. Exploración de Promedios Móviles Espaciales
 La matriz $W$ actúa como un **operador de rezago espacial**. Al calcular el promedio ponderado de los vecinos, suavizamos la variable para detectar tendencias regionales de largo alcance en lugar de ruido local.
 
-```{r promedios_moviles, message=FALSE, warning=FALSE}
-# Calcular el rezago espacial (promedio móvil)
-ohlung$tasa_lag88 <- lag.listw(knn8_nb_w, ohlung$tasa_88)
+```{r promedios_moviles, echo=FALSE, message=FALSE, warning=FALSE}
+# # Calcular el rezago espacial (promedio móvil)
+ohlung$tasa_lag_mujer88 <- lag.listw(W_seleccionada, ohlung$tasa_mujer_88)
 
-# Comparar mapa original vs suavizado
-tmap_arrange(
-  tm_shape(ohlung) + tm_polygons("tasa_88", title = "Tasa Original", palette = "Reds"),
-  tm_shape(ohlung) + tm_polygons("tasa_lag88", title = "Promedio Móvil (KNN8)", palette = "Reds")
-)
+# # Comparar mapa original vs suavizado
+# tmap_arrange(
+#   tm_shape(ohlung) + tm_polygons("tasa_mujer_88", title = "Tasa Original", palette = "Reds"),
+#   tm_shape(ohlung) + tm_polygons("tasa_lag_mujer88", title = "Promedio Móvil (ponderado por tasa_white_88)", palette = "Reds")
+# )
+
+### Gráfico en misma escala
+# 1. ENCONTRAR EL RANGO TOTAL AUTOMÁTICAMENTE
+# Unimos la tasa original y el lag para que la escala sea idéntica
+rango_suavizado <- c(ohlung$tasa_mujer_88, ohlung$tasa_lag_mujer88)
+
+# 2. DEFINIR LOS CORTES (Escala unificada usando Fisher para detectar clústeres)
+# Usamos un mapa temporal para extraer los cortes óptimos de todo el rango
+cortes_unificados <- classInt::classIntervals(rango_suavizado, n = 6, style = "fisher")$brks
+
+# 3. FUNCIÓN PARA LOS MAPAS DE SUAVIZADO
+crear_mapa_suave <- function(variable, titulo) {
+  tm_shape(ohlung) + 
+    tm_polygons(variable, 
+                palette = "Reds",
+                breaks = cortes_unificados, # Forzamos la misma escala en ambos
+                border.col = "white",
+                lwd = 0.5) + 
+    tm_layout(main.title = titulo, 
+              main.title.size = 0.9, 
+              main.title.position = "center",
+              legend.show = FALSE,
+              frame = FALSE)
+}
+
+# 4. CREAR LOS DOS MAPAS
+m_original <- crear_mapa_suave("tasa_mujer_88", "Tasa Mujer 88 (Original)")
+m_suavizado <- crear_mapa_suave("tasa_lag_mujer88", "Tasa Suavizada (Lag)")
+
+# 5. LEYENDA UNIFICADA
+leyenda_suave <- tm_shape(ohlung) + 
+  tm_polygons("tasa_mujer_88", palette = "Reds", 
+              breaks = cortes_unificados,
+              title = "Escala de Tasa\n(Casos/Población)",
+              border.col = "white") + 
+  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
+
+# 6. RESULTADO LADO A LADO
+# Usamos 1 fila y 3 columnas (Mapa 1, Mapa 2 y Leyenda)
+tmap_arrange(m_original, m_suavizado, leyenda_suave, 
+             nrow = 1, ncol = 3, asp = 0)
+
+
 ```
 
+La comparación bajo una escala unificada demuestra que, al eliminar el ruido estadístico local mediante el rezago espacial (Lag), persiste una estructura regional de alta incidencia de cáncer de pulmón en mujeres en el sudeste de Ohio. 
 
-# variables seleccionadas
+## 4. Análisis de Eigenvectores (MESF/MEM)
+La técnica **MESF** filtra la autocorrelación de los residuales y la transfiere al intercepto del modelo. Los eigenvectores representan patrones de mapas: los de valores propios altos muestran gradientes globales, mientras que los bajos muestran contrastes locales.
+
+```{r mesf_analysis, echo=FALSE, message=FALSE, warning=FALSE}
+# 1. Matriz de conectividad binaria C
+C_mat <- nb2mat(nb_atributo, style = "B")
+
+# 2. Operador de proyección de Moran (M)
+n <- nrow(ohlung)
+I <- diag(n)
+M <- I - matrix(1, n, n)/n
+MBM <- M %*% C_mat %*% M
+
+# 3. Eigendecomposición
+eig <- eigen(MBM, symmetric = TRUE)
+# Filtrar eigenvectores con MC/MCmax > 0.25 (umbral Griffith)
+umbral <- 0.25
+EV_validos <- as.data.frame(eig$vectors[, eig$values / max(eig$values) > umbral])
+colnames(EV_validos) <- paste0("EV", 1:ncol(EV_validos))
+
+# Visualizar el primer eigenvector (Patrón de máxima autocorrelación positiva)
+ohlung$EV1 <- EV_validos$EV1
+tm_shape(ohlung) + tm_polygons("EV1", palette = "RdYlGn", title = "Eigenvector 1 (Gradiente Principal)")
+```
+Cuando utilizas una matriz de conectividad basada en Atributos (nb_atributo) donde casi todos los condados están conectados entre sí con pesos muy similares, la eigendecomposición "colapsa". En lugar de un gradiente suave (que es lo que buscamos), obtienes un eigenvector que solo resalta un valor atípico (outlier) y deja al resto como una masa uniforme. Esto no sirve para modelar la estructura espacial. 
+(en este caso con esta W no sirve hacer MESF/MEM)
+
+
 
 ```{r moran bivariado funcion, include=FALSE}
 bivariate_moran <- function(x, y, listw) {
@@ -838,35 +1227,38 @@ bivariate_moran <- function(x, y, listw) {
 ```
 
 ```{r}
-X <- numericas %>% dplyr::select(-c("casos_totales88","pop_total88",
-                                    'POPMW88','POPFW88','POPM88',
-                                    'POPF88','LFW88','LMW88','LF88',
-                                    'LM88')) %>% 
+X <- ohlung |>
+  dplyr::select(vars_interes[-6]) |>
   sf::st_drop_geometry()
-Y <- numericas[,c("tasa_88")] %>% 
-  sf::st_drop_geometry()
+
+Y <- ohlung |>
+  dplyr::select(vars_interes[6]) |>
+  sf::st_drop_geometry() |>
+  dplyr::pull()
+
 resultado <- do.call(
   rbind,
   lapply(names(X), function(var_x) {
-    
+
     res <- bivariate_moran(
       x = X[[var_x]],
       y = Y,
-      listw = queen_nb_w
+      listw = W_seleccionada
     )
-    
+
     data.frame(
       variable_x = var_x,
       moran_bivariado = res$moran_bivariado
     )
   })
 )
-
 kableExtra::kable(resultado[order(resultado$moran_bivariado),],
                   caption ='Moran bivariado con queen',
                   digits = 4)
 ```
-Podemos ver que algunas variables presentan una correlación positiva con la variable respuesta (tasa total de cancer en 1988), principalmente comparando con las variables que tenían una alta correlación lineal de Pearson con la variable respuesta, pero pensando principalmente en las tasas se ve que para valores altos en una zona, sus vecinos tienden a tener valores altos
+Podemos ver que algunas variables presentan una correlación positiva con la variable respuesta (tasa de incidencia de cancer en mujeres en 1988), esto significa que para valores altos en una zona, sus vecinos tienden a tener valores altos. Este parece ser el caso bastante evidente de la tasa de blancos de 1978, la tasa de hombres de 1978 y el cambio entre las tasas de 1968 y 1978.
+
+Es importante recordar que en términos de correlación lineal, la tasa de blancos de 1978 y la tasa de hombres de 1978, eran las que presentaban la correlación más alta con la variable respuesta.
 
 ```{r}
 resultado <- do.call(
@@ -896,517 +1288,59 @@ kableExtra::kable(resultado[order(resultado$moran_bivariado),],
                   caption ='Moran bivariado con 8 vecinos',
                   digits = 4)
 ```
+La población en 1968 tuvo un coeficiente de moran bivariado con la variable respuesta moderado, sin embargo, como la tasa de los hombres tuvo un coeficiente más elevado, tanto en el moran bivariado como en la correlación lineal con la variable respuesta, es mejor quedarse solo con la tasa de hombres de 1978.
 
+Por otro lado tanto en correlación lineal como en moran bivariado, la tasa de blancos de 1978 y la tasa de hombres presentan valores altos, por lo que es mejor quedarse que una sola de estas variables, en este caso cada variable destaco un poco por encima de la otra en correlación lineal y en moran bivariado con la variable respuesta, así que en este caso, conservaremos la tasa de blancos de 1978, para conservar la información de la raza. También es el caso de  *AREa* y *PERIMETER* por lo que se decide conservar *PERIMETER* que es la variable que tiene más altos valores con la variable dependiente.
+
+Por último la variable del cambio de las tasas entre 1968 y 1978 se decide conservar a pesar de los valores altos con la variable de tasa de blancos de 1978, ya que sus valores son moderados, y se dejará para observar como se comporta.
+
+En lo que respecta al resto de variables revisadas anteriormente con la correlación lineal de Pearson, debido a sus altos valores en el coeficiente moran, seran descartadas.
 
 *Variables explicativas seleccionadas:*
 
-* *LMW68*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1968.
+* *PERIMETER*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1978.
 
-* *LMW78*: Número de casos de cáncer de púlmon en hombres blancos en el año de 1978.
+* *tasa_white_78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1968.
 
-* *LFW68*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1968.
+* *cambio_68_78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1978.
 
-* *LFW78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1978.
-
-
-# Regresión poisson
-
-Debido a la naturaleza de los datos, al tratarse de conteos o tasas de incidencia decidimos manejar una regresión poisson para modelar los datos.
-
-## glm1
-```{r glm1, echo=FALSE, fig.height=10, fig.width=10, warning=FALSE}
-glm1 <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-              offset(log(pop_total88)),
-            data=ohlung,family = poisson(link = "log"))
-summary(glm1)
-check_model(glm1)
-```
-Observamos que la variable *PERIMETER* no fue significativa, de igual manera parece ser que la raza tampoco es significativa.
-
-Por otro lado parece ser que por condado hay correlación perfecta.
-
-Los residuales presentan un comportamiento creciente y más disperso, lo que indica un patrón no explicado y sobre dispersión.
-
-Hubo observaciones influyentes, sin embargo no son demasiadas.
-
-## *Independecia*
-
-```{r acf glm1}
-acf(residuals.glm(glm1), main = "ACF de los residuales", col = "blue", lwd = 2)
-
-```
-
-El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
-
-```{r independencia glm1}
-dwtest(glm1)
-```
-Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
-
-```{r}
-moran.test(residuals.glm(glm1), listw = queen_nb_w)
-moran.test(residuals.glm(glm1), listw = knn8_nb_w)
-```
-
-## *Normalidad*
-
-```{r graficos normales glm1}
-hist(residuals.glm(glm1),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals.glm(glm1), main = "QQ-Plot de los residuales")
-qqline(residuals.glm(glm1), col = "red", lwd = 2)
-```
-
-En el histograma no podemos ver claramente una distribución simétrica y centrada en 0, pero en el qqplot podemos ver que las observaciones estan alrededor de la línea.
-
-Para confirmar la sospecha de normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba glm1}
-shapiro.test(residuals.glm(glm1))
-```
-De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$).
-
-
-## *Homocedasticidad*
-
-Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
-
-```{r breusch-pagan glm1, echo=FALSE, message=FALSE, warning=FALSE}
-bptest(glm1)
-```
-
-Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ de igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
-
-
-## Quasi poisson
-
-Tratando de manejar la sobredispersión se intentó realizar un modelo quasi poisson.
-
-```{r quasi poisson, fig.height=10, fig.width=10}
-glm_qp <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-              offset(log(pop_total88)),
-              data = ohlung)
-summary(glm_qp)
-check_model(glm_qp)
-```
-
-Las estimaciones son prácticamente las mismas del modelo *glm2*, pero así mismo presentar el mismo problema de los residuales de este, excepto que en este los residuales no tienen ni si quiera el comportamiento de una distribución normal.
-
-## *Independecia*
-
-```{r acf glm_qp}
-acf(residuals.glm(glm_qp), main = "ACF de los residuales", col = "blue", lwd = 2)
-
-```
-
-El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
-
-```{r independencia glm_qp}
-dwtest(glm_qp)
-```
-Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
-
-
-```{r}
-moran.test(residuals.glm(glm_qp), listw = queen_nb_w)
-moran.test(residuals.glm(glm_qp), listw = knn8_nb_w)
-```
-
-## *Normalidad*
-
-```{r graficos normales glm_qp}
-hist(residuals.glm(glm_qp),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals.glm(glm_qp), main = "QQ-Plot de los residuales")
-qqline(residuals.glm(glm_qp), col = "red", lwd = 2)
-```
-
-En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba glm_qp}
-shapiro.test(residuals.glm(glm_qp))
-```
-De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$).
-
-
-## *Homocedasticidad*
-
-Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
-
-```{r breusch-pagan glm_qp, echo=FALSE, message=FALSE, warning=FALSE}
-bptest(glm_qp)
-
-```
-
-Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
-
-
-## Doblemente generalizado
-
-```{r doblemente generalizado, fig.height=10, fig.width=10}
-
-dglm_model <- dglm(casos_totales88~LMW68+LMW78+LFW68+LFW78,
-                   ~ cambio_68_78,          
-                   offset = log(pop_total88),
-                   family = poisson(link = "log"),
-                   dfamily = Gamma(link = "log"),   
-                   data = ohlung)
-
-summary(dglm_model)
-check_model(dglm_model)
-```
-
-En este ninguna variable se mostró como significativa y de hecho se vieron más observaciones influyentes, el comportamiento de los residuales no es para nada normal y sigue existiendo el problema del 0 inflado.
-
-### Modelo de media
-
-#### *Independecia*
-
-```{r acf dglm_media}
-acf(residuals(dglm_model), main = "ACF de los residuales", col = "blue", lwd = 2)
-
-```
-
-Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
-
-```{r independencia dglm_media}
-dwtest(dglm_model)
-```
-En efecto se rechaza la independencia de los errores, con un p valor menor al nivel de significancia.
-
-```{r}
-moran.test(residuals(dglm_model), listw = queen_nb_w)
-moran.test(residuals(dglm_model), listw = knn8_nb_w)
-```
-
-#### *Normalidad*
-
-```{r graficos normales dglm_media}
-hist(residuals(dglm_model),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals(dglm_model), main = "QQ-Plot de los residuales")
-qqline(residuals(dglm_model), col = "red", lwd = 2)
-```
-
-Se ve claramente en el histograma un sesgo a derecha, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba dglm_media}
-shapiro.test(residuals(dglm_model))
-```
-Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
-
-#### *Homocedasticidad*
-
-```{r grafico dispersion dglm_media, echo=FALSE, message=FALSE, warning=FALSE}
-plot(fitted(dglm_model),
-     residuals(dglm_model,type="pearson"))
-abline(h=0,col="red")
-
-```
-
-Podemos notar que se presenta una varianza creciente con una forma notoria en los residuales de cono.
-
-### Modelo de dispersión
-
-#### *Independecia*
-
-```{r acf dglm_varianza}
-acf(residuals(dglm_model$dispersion.fit), main = "ACF de los residuales", col = "blue", lwd = 2)
-
-```
-
-Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
-
-```{r independencia dglm_varianza}
-dwtest(dglm_model$dispersion.fit)
-```
-En efecto se rechaza la independencia de los errores, con un p valor menor al nivel de significancia.
-
-```{r}
-moran.test(residuals(dglm_model$dispersion.fit), listw = queen_nb_w)
-moran.test(residuals(dglm_model$dispersion.fit), listw = knn8_nb_w)
-```
-
-#### *Normalidad*
-
-```{r graficos normales dglm_varianza}
-hist(residuals(dglm_model$dispersion.fit),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals(dglm_model$dispersion.fit), main = "QQ-Plot de los residuales")
-qqline(residuals(dglm_model$dispersion.fit), col = "red", lwd = 2)
-```
-
-Se ve en el histograma un comportamiento bimodal, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba dglm_dispersion}
-shapiro.test(residuals(dglm_model$dispersion.fit))
-```
-Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
-
-
-#### *Homocedasticidad*
-
-```{r grafico dispersion dglm_varianza, echo=FALSE, message=FALSE, warning=FALSE}
-plot(fitted(dglm_model$dispersion.fit),
-     residuals(dglm_model$dispersion.fit))
-abline(h=0,col="red")
-
-```
-
-
-## Efecto aleatorio
-
-Para controlar la sobre dispersión se decidió usar un efecto aleatorio por condado asumiendo que dentro de cada condado hay características diferentes no controlables, como la contaminación ambiental, recursos económicos o políticas de salud, entre otros.
-
-```{r efecto aleatorio, fig.height=10, fig.width=10}
-# Modelo poisson con efecto aleatorio por condado
-modelo_glmer <- glmer(casos_totales88~LMW68+LMW78+LFW68+LFW78+(1 | NAME) + 
-                        offset(log(pop_total88)),
-                      family = poisson(link = "log"),
-                      data = ohlung)
-
-summary(modelo_glmer)
-plot(modelo_glmer)
-check_model(modelo_glmer)
-```
-
-Nuevamente raza deja de ser significativo.
-
-Los residuales parecen estar centrados, sin embargo todavía parecen presentar problemas de heteroscedasticidad, aunque parece haber mejorado un poco el problema de los 0's inflados, todavía parece haber un poco de sobredispersión.
-
-Los efectos aleatorios tambien parecen cumplir con los supuestos.
-
-Se realizaron pruebas para verificar los resultados de las gráficas.
-
-### *Independencia:*
-```{r acf efecto aleatorio, echo=FALSE, fig.height=5, fig.width=10}
-acf(residuals(modelo_glmer))
-```
-
-Parecen haber algunas correlaciones entre los residuales.
-
-```{r  residuales efecto aleatorio, fig.height=7, fig.width=10}
-sim <- simulateResiduals(modelo_glmer)
-plot(sim)
-testResiduals(sim)
-```
-
-Se decidió realizar una prueba de rachas 
-
-
-```{r rachas efecto aleatorio}
-runs.test(factor(residuals(modelo_glmer) > 0))
-```
-Como el p valor obtuvo un valor mayor al nivel de significancia, no se rechaza $H_0:$ los residuales son independientes.
-
-### *Normalidad*
-
-```{r graficos normales efecto aleatorio, fig.height=7, fig.width=10}
-hist(residuals(modelo_glmer),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals(modelo_glmer), main = "QQ-Plot de los residuales")
-qqline(residuals(modelo_glmer), col = "red", lwd = 2)
-```
-
-Se ve en el histograma un sesgamiento a derecha, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba efecto aleatorio}
-shapiro.test(residuals(modelo_glmer))
-```
-Como el p valor es menor al nivel de significancia ($\alpha=0.05$), se rechaza $H_0:$ los residuales provienen de una población normal.
-
-### *Homocedasticidad*
-
-
-```{r breusch-pagan efecto aleatorio, echo=FALSE, message=FALSE, warning=FALSE}
-sim_res <- simulateResiduals(modelo_glmer)
-plot(sim_res)
-
-```
-
-# Regresión binomial negativa
-
-## bnglm
-
-Para enfrentar los problemas de sobre dispersión se pensó en realizar un modelo con binomial negativa.
-```{r binomial negativa, fig.height=10, fig.width=10}
-bnglm <- glm.nb(formula = casos_totales88~LMW68+LMW78+LFW68+LFW78+
-               offset(log(pop_total88)),
-            data=ohlung)
-summary(bnglm)
-check_model(bnglm)
-# envelope(bnglm, rep=500)
-```
-
-Se destaca que el hecho de que las estimaciones son del mismo signo que en *glm2*, tambien hubo algunas que estaban bastente cercanas en número. Nuevamente todas las variables fueron significativas, pero el comportamiento de los residuales sigue viendose casi del mismo modo que en los modelos *glm1* y *glm2*.
-
-### *Independecia*
-
-```{r acf bnglm}
-acf(residuals(bnglm), main = "ACF de los residuales", col = "blue", lwd = 2)
-
-```
-
-El correlograma muestra una leve señal de correlación en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
-
-```{r independencia bnglm}
-dwtest(bnglm)
-```
-Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
-
-```{r}
-moran.test(residuals(bnglm), listw = queen_nb_w)
-moran.test(residuals(bnglm), listw = knn8_nb_w)
-```
-
-### *Normalidad*
-
-```{r graficos normales bnglm}
-hist(residuals(bnglm),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals(bnglm), main = "QQ-Plot de los residuales")
-qqline(residuals(bnglm), col = "red", lwd = 2)
-```
-
-En el histograma podemos ver aproximadamente una distribución simétrica alrededor entre -1 y 0, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba bnglm}
-shapiro.test(residuals(bnglm))
-```
-De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
-
-
-### *Homocedasticidad*
-
-Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
-
-```{r breusch-pagan bnglm, echo=FALSE, message=FALSE, warning=FALSE}
-bptest(bnglm)
-
-```
-
-Con un p valor menor al nivel de significancia (0.05) se rechaza la $H_0$ igualdad de varianzas, es algo que ya se podría detectar a simple vista en el gráfico de los residuales y los valores predichos.
-
-
-## Efecto aleatorio
-
-```{r binomial negativa efecto aleatorio, fig.height=10, fig.width=10}
-# Modelo con binomial negativa + efecto aleatorio por condado
-nbea <- glmmTMB(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-                (1 | NAME) + 
-                      offset(log(pop_total88)),
-                     family = nbinom2,          # ← aquí está el cambio clave
-                     data = ohlung)
-
-summary(nbea)
-plot(fitted.values(nbea),residuals(nbea))
-check_model(nbea)
-```
-
-### *Independencia:*
-```{r acf bn efecto aleatorio, echo=FALSE, fig.height=5, fig.width=10}
-acf(residuals(nbea))
-```
-
-Parecen haber algunas correlaciones entre los residuales.
-
-```{r bn residuales efecto aleatorio, fig.height=7, fig.width=10}
-sim <- simulateResiduals(nbea)
-plot(sim)
-testResiduals(sim)
-```
-
-Se decidió realizar una prueba de rachas 
-
-
-```{r bn rachas efecto aleatorio}
-runs.test(factor(residuals(nbea) > 0))
-```
-Como el p valor obtuvo un valor mayor al nivel de significancia, no se rechaza $H_0:$ los residuales son independientes.
-
-```{r}
-moran.test(residuals(nbea), listw = queen_nb_w)
-moran.test(residuals(nbea), listw = knn8_nb_w)
-```
-
-### *Normalidad*
-
-```{r graficos normales bn efecto aleatorio, fig.height=7, fig.width=10}
-hist(residuals(nbea),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
-qqnorm(residuals(nbea), main = "QQ-Plot de los residuales")
-qqline(residuals(nbea), col = "red", lwd = 2)
-```
-
-Se ve centralidad alrededor de 0 y una distribución simétrica, y en el qqplot podemos observar una evidencia fuerte tambien de no normalidad sobre todo por las colas.
-
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
-
-```{r normalidad prueba nbea}
-shapiro.test(residuals(nbea))
-```
-Como el p valor es menor al nivel de significancia ($\alpha=0.05$), se rechaza $H_0:$ los residuales provienen de una población normal.
-
-### *Homocedasticidad*
-
-
-```{r homo bn efecto aleatorio, echo=FALSE, message=FALSE, warning=FALSE}
-sim_res <- simulateResiduals(nbea)
-plot(sim_res)
-
-```
-
-## 4. Análisis de Eigenvectores (MESF/MEM)
-La técnica **MESF** filtra la autocorrelación de los residuales y la transfiere al intercepto del modelo. Los eigenvectores representan patrones de mapas: los de valores propios altos muestran gradientes globales, mientras que los bajos muestran contrastes locales.
-
-```{r mesf_analysis, message=FALSE, warning=FALSE}
-# 1. Matriz de conectividad binaria C
-C_mat <- listw2mat(knn8_nb_w)
-
-# 2. Operador de proyección de Moran (M)
-n <- nrow(ohlung)
-I <- diag(n)
-M <- I - matrix(1, n, n)/n
-MBM <- M %*% C_mat %*% M
-
-# 3. Eigendecomposición
-eig <- eigen(MBM, symmetric = TRUE)
-# Filtrar eigenvectores con MC/MCmax > 0.25 (umbral Griffith)
-umbral <- 0.25
-EV_validos <- as.data.frame(eig$vectors[, eig$values / max(eig$values) > umbral])
-colnames(EV_validos) <- paste0("EV", 1:ncol(EV_validos))
-
-# Visualizar el primer eigenvector (Patrón de máxima autocorrelación positiva)
-ohlung$EV1 <- EV_validos$EV1
-tmap::tmap_mode("plot")
-tm_shape(ohlung) + tm_polygons("EV1", palette = "RdYlGn", title = "Eigenvector 1 (Gradiente Principal)")
-```
 
 ## 5. Pruebas de Diagnóstico para Selección del Modelo (LM Tests)
 Para decidir si la dependencia espacial debe modelarse en la **variable dependiente** (Modelo de Rezago/Lag) o en los **términos de error** (Modelo de Error), utilizamos los Tests del Multiplicador de Lagrange sobre un modelo base de Mínimos Cuadrados.
 
-```{r lm_tests, eval=FALSE, include=FALSE}
+```{r lm_tests, echo=FALSE, fig.height=10, fig.width=10}
 # 1. Cargamos la librería para la selección
 library(MASS)
 library(glmnet)
 
 
+mco_completo <- lm(tasa_mujer_88 ~ PERIMETER +  tasa_white_78 + cambio_68_78 ,
+               data = ohlung)
+summary(mco_completo)
+
+lm.morantest(mco_completo, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+# 3. Selección automática de variables (Stepwise)
+# 'direction = "both"' quita y pone variables hasta encontrar el mejor AIC
+mco_final <- stepAIC(mco_completo, direction = "both", trace = FALSE)
+
+summary(mco_final)
+
+lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+check_model(mco_final)
+#----------------
+
+
 # 2. Preparar los datos (Lasso requiere matrices, no data.frames)
 # Seleccionamos las columnas numéricas que quieres evaluar
-columnas_x <- c("AREA", "PERIMETER", "tasa_white_68", "tasa_black_68", "tasa_white_78", 
-                "tasa_black_78", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", 
-                "tasa_hombre_78", "casos_totales68", "casos_totales78", 
-                "pop_total68", "pop_total78", "tasa_68", "tasa_78", 
-                "cambio_68_78")
+columnas_x <- c( "PERIMETER", "tasa_white_78",  "cambio_68_78")
 
 # Creamos la matriz X (predictores) y el vector Y (respuesta)
 # Eliminamos filas con NA si las hubiera
-datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_88", columnas_x)])
+datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_mujer_88", columnas_x)])
 x <- as.matrix(datos_limpios[, -1])
-y <- datos_limpios$tasa_88
+y <- datos_limpios$tasa_mujer_88
 
 # 3. Ajustar el modelo Lasso con Validación Cruzada para encontrar el mejor 'lambda'
 lasso_cv <- cv.glmnet(x, y, alpha = 1) # alpha = 1 es Lasso
@@ -1420,10 +1354,13 @@ print(coeficientes_finales)
 plot(lasso_cv)
 
 
+```
 
+Se evalua el mejor modelo con pruebas mas robustas de Anselin (lm.RStests) que controlan por la posible presencia simultánea de ambos tipos de dependencia espacial (lag y error).
 
+```{r lm_tests_robustos, echo=FALSE}
 # 1. Asegurarnos de usar la nueva función lm.RStests
-diagnostico_espacial <- lm.RStests(mco_final, knn8_nb_w, test = "all", zero.policy = TRUE)
+diagnostico_espacial <- lm.RStests(mco_final, W_seleccionada, test = "all", zero.policy = TRUE)
 
 # 2. Mostrar los resultados
 print(diagnostico_espacial)
@@ -1453,75 +1390,443 @@ Para elegir el modelo seguimos la regla de decisión de Anselin:
   
 Esto indica que, incluso después de controlar por población, raza y tasas históricas, la tasa de cáncer de un municipio sí está influenciada directamente por las tasas de sus vecinos. Existe un efecto de "derrame" o contagio espacial (spillover) que el modelo MCO no estaba captando.
 
-# Regresión espacial
+### 1.  Modelo Poisson
+Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
 
-Una conclusión que podemos ver es que tenemos sobredispersión, sin embargo no tenemos conteos iguales a 0 ya que manejamos los totales de casos por condado, por año.
+```{r poisson_fit, fig.height=10, fig.width=10}
+# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
+fit_poisson <- glm(LF88  ~ PERIMETER +  tasa_white_78 + cambio_68_78 , 
+                   offset = log(POPF88),
+                   family = poisson(link = "log"), 
+                   data = ohlung)
 
-## SLX
+summary(fit_poisson)
 
-```{r include=FALSE}
-# rezagamos las variables
-X <- ohlung[,c('LMW68','LMW78','LFW68','LFW78')] %>% sf::st_drop_geometry()
-WX_queen <- create_WX(X, queen_nb_w)
-WX_knn8 <- create_WX(X,knn8_nb_w)
-colnames(WX_queen) <- c('lag_LMW68','lag_LMW78','lag_LFW68','lag_LFW78')
-colnames(WX_knn8) <- c('lag_LMW68','lag_LMW78','lag_LFW68','lag_LFW78')
-data_ext_queen <- cbind(ohlung, WX_queen)
-data_ext_knn8 <- cbind(ohlung, WX_knn8)
+check_model(fit_poisson)
+check_overdispersion(fit_poisson)
 
+
+poisson_final <- stepAIC(fit_poisson, direction = "both", trace = FALSE)
+
+summary(poisson_final)
+
+lm.morantest(poisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(poisson_final)
+check_overdispersion(poisson_final)
+
+# 1. Asegurarnos de usar la nueva función lm.RStests
+diagnostico_espacial <- lm.RStests(poisson_final, W_seleccionada, test = "all", zero.policy = TRUE)
+
+# 2. Mostrar los resultados
+print(diagnostico_espacial)
+
+```
+
+
+
+### *Independecia*
+
+```{r acf glm_qp}
+acf(residuals.glm(poisson_final), main = "ACF de los residuales", col = "blue", lwd = 2)
 
 ```
 
-```{r modelos espaciales queen y knn8}
-glmLSX_queen <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-                      lag_LMW68+lag_LMW78+lag_LFW68+lag_LFW78+
-              offset(log(pop_total88)),
-            data=data_ext_queen,family = poisson(link = "log"))
-glmLSX_knn8 <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-                     lag_LMW68+lag_LMW78+lag_LFW68+lag_LFW78+
-              offset(log(pop_total88)),
-            data=data_ext_knn8,family = poisson(link = "log"))
-anova(glmLSX_queen,glmLSX_knn8)
-summary(glmLSX_queen)
-summary(glmLSX_knn8)
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_qp}
+dwtest(poisson_final)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(poisson_final),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la $H_0$ de independencia espacial, es decir en los residuales se presenta dependencia espacial, y es motivo para realizar un modelo espacial,
+### *Normalidad*
+
+```{r graficos normales glm_qp}
+hist(residuals.glm(poisson_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(poisson_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(poisson_final), col = "red", lwd = 2)
 ```
 
-```{r mroan para queen y knn8}
-moran.test(residuals(glmLSX_queen), listw = queen_nb_w)
-moran.test(residuals(glmLSX_knn8), listw = knn8_nb_w)
+El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+
+Para confirmar si l distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_qp}
+shapiro.test(residuals.glm(poisson_final))
+```
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_qp, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(poisson_final)
 
 ```
-## Modelo Lag
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
 
-```{r creacion rezagos en Y, include=FALSE}
-# variable respuesta rezagada
-Y <- ohlung[,c("casos_totales88","pop_total88")] %>% sf::st_drop_geometry()
-WY_queen <- create_WX(Y,queen_nb_w) 
-WY_knn8 <- create_WX(Y,knn8_nb_w)
-colnames(WY_queen) <- c('lag_totales88','lag_pop88')
-colnames(WY_knn8) <- c('lag_totales88','lag_pop88')
-Y_ext_queen <- cbind(ohlung,WY_queen)
-Y_ext_knn8 <- cbind(ohlung,WY_knn8)
+
+#### Verificación de Sobredispersión
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion}
+
+check_overdispersion(poisson_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_poisson$deviance / fit_poisson$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
 ```
 
 
-```{r modelos lag}
-glmlag_queen <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-                      lag_totales88+lag_pop88+
-              offset(log(pop_total88)),
-            data=Y_ext_queen,family = poisson(link = "log"))
-glmlag_knn8 <- glm(casos_totales88~LMW68+LMW78+LFW68+LFW78+
-                     lag_totales88+lag_pop88+
-              offset(log(pop_total88)),
-            data=Y_ext_knn8,family = poisson(link = "log"))
-anova(glmlag_queen,glmlag_knn8)
-summary(glmlag_queen)
-summary(glmlag_knn8)
-```
-```{r mroan modelos lag}
-moran.test(residuals(glmlag_queen), listw = queen_nb_w)
-moran.test(residuals(glmlag_knn8), listw = knn8_nb_w)
+### 1.  Modelo quasi Poisson
+Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
 
+```{r qpoisson_fit, fig.height=10, fig.width=10}
+# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
+fit_qpoisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 , 
+                   offset = log(POPF88),
+                   family = quasipoisson(link = "log"), 
+                   data = ohlung)
+
+summary(fit_qpoisson)
+
+check_model(fit_qpoisson)
+check_overdispersion(fit_qpoisson)
+
+
+qpoisson_final <- glm(LF88  ~ tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88   , 
+                   offset = log(POPF88),
+                   family = quasipoisson(link = "log"), 
+                   data = ohlung)
+
+summary(qpoisson_final)
+
+lm.morantest(qpoisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(qpoisson_final)
+check_overdispersion(qpoisson_final)
+
+```
+
+
+
+### *Independecia*
+
+```{r acf 2}
+acf(residuals.glm(qpoisson_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia 2}
+dwtest(qpoisson_final)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+### *Normalidad*
+
+```{r graficos normales 2}
+hist(residuals.glm(qpoisson_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(qpoisson_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(qpoisson_final), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba 2}
+shapiro.test(residuals.glm(qpoisson_final))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan 2, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(qpoisson_final)
+
+```
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion2}
+
+check_overdispersion(qpoisson_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_qpoisson$deviance / fit_qpoisson$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+
+
+
+### 1. Binomial negativo
+Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
+
+```{r BinomialN_fit, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
+# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
+fit_bn <- glm.nb(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 + offset(log(POPF88)),
+                 data = ohlung)
+
+summary(fit_bn)
+
+check_model(fit_bn)
+check_overdispersion(fit_bn)
+
+
+bn_final <- stepAIC(fit_bn, direction = "both", trace = FALSE)
+
+summary(bn_final)
+
+lm.morantest(bn_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(bn_final)
+check_overdispersion(bn_final)
+
+```
+
+
+
+### *Independecia*
+
+```{r acf 3}
+acf(residuals.glm(bn_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia 3}
+dwtest(bn_final)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+### *Normalidad*
+
+```{r graficos normales 3}
+hist(residuals.glm(bn_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(bn_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(bn_final), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba 3}
+shapiro.test(residuals.glm(bn_final))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan 3, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(bn_final)
+
+```
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion3}
+
+check_overdispersion(bn_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_bn$deviance / fit_bn$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+
+
+### 1. Doblemente generalizado
+
+```{r doblemente generalizado, fig.height=10, fig.width=10}
+dglm_model <- dglm(formula = LF88 ~ scale(tasa_black_88) + scale(tasa_white_88) + 
+                   scale(tasa_hombre_88) + scale(cambio_78_88) + 
+                   scale(cambio_68_88),
+  # El offset se añade fuera de la escala
+  offset = log(POPF88),
+                   family = poisson(link = "log"),
+                   dfamily = Gamma(link = "log"),   
+                   data = ohlung)
+
+summary(dglm_model)
+check_model(dglm_model)
+
+moran.test(residuals(dglm_model), W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+check_overdispersion(dglm_model)
+```
+
+el comportamiento de los residuales no es para nada normal 
+
+#### 1. Modelo de media
+
+### *Independecia*
+
+```{r acf dglm_media}
+acf(residuals(dglm_model), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_media}
+dwtest(dglm_model)
+```
+En efecto no se rechaza la independencia de los errores, con un p valor mayor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_media}
+hist(residuals(dglm_model),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model), col = "red", lwd = 2)
+```
+
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media}
+shapiro.test(residuals(dglm_model))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_media, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model),
+     residuals(dglm_model,type="pearson"))
+abline(h=0,col="red")
+
+```
+
+Podemos notar que se presenta una varianza creciente con una forma notoria en los residuales de cono.
+
+#### 1. Modelo de dispersión
+
+### *Independecia*
+
+```{r acf dglm_varianza}
+moran.test(residuals(dglm_model$dispersion.fit),  W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+acf(residuals(dglm_model$dispersion.fit), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_varianza}
+dwtest(dglm_model$dispersion.fit)
+```
+En efecto no se rechaza la independencia de los errores, con un p valor mayor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_varianza}
+hist(residuals(dglm_model$dispersion.fit),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model$dispersion.fit), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model$dispersion.fit), col = "red", lwd = 2)
+```
+
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media2}
+shapiro.test(residuals(dglm_model$dispersion.fit))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_varianza, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model$dispersion.fit),
+     residuals(dglm_model$dispersion.fit))
+abline(h=0,col="red")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 3. Comparación Visual de Predicciones
+Compararemos cómo cada modelo predice la **tasa** final.
+
+```{r comparison_plot}
+# Predicciones de tasa para MCO
+ohlung$pred_mco <- predict(mco_final)
+
+# Predicciones de tasa para Poisson (Exp(log_mu) / población)
+ohlung$pred_poisson <- predict(fit_poisson, type = "response") / ohlung$POPF88
+
+# Gráfico de comparación: Observado vs Predicho
+ggplot(ohlung, aes(x = tasa_mujer_88)) +
+  geom_point(aes(y = pred_mco, color = "MCO"), alpha = 0.5) +
+  geom_point(aes(y = pred_poisson, color = "Poisson"), alpha = 0.5) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  labs(title = "Tasas Observadas vs Predichas",
+       x = "Tasa Mujer 88 (Observada)",
+       y = "Tasa Predicha") +
+  theme_minimal()
+```
+
+### 4. Autocorrelación Espacial en Residuales de Poisson
+Es vital verificar si el modelo de Poisson ha capturado la estructura espacial mejor o peor que el OLS.
+
+```{r moran_poisson}
+# Cálculo de residuales de Pearson para el test de Moran
+res_poisson <- residuals(fit_poisson, type = "pearson")
+
+# Test de Moran
+moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 ```
 
 
