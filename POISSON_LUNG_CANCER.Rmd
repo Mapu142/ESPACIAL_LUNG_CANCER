@@ -636,7 +636,7 @@ Lo que podemos destacar de la tabla es:
 
 * *LFW78*: Número de casos de cáncer de púlmon en mujeres blancos en el año de 1978.
 
-```{r correlograma, echo=FALSE, fig.height=6, fig.width=10, message=FALSE, warning=FALSE}
+```{r correlograma, echo=FALSE, fig.height=5, fig.width=10, message=FALSE, warning=FALSE}
 # 1. Seleccionamos las variables clave para no saturar
 # vars_interes <- c("tasa_88", "tasa_78", "tasa_68", "tasa_white_88", "tasa_black_88", 
 #                   "tasa_hombre_88", "tasa_mujer_88", "casos_totales68", "casos_totales78", "casos_totales88",
@@ -645,8 +645,8 @@ Lo que podemos destacar de la tabla es:
 #                   "tasa_black_88", "tasa_mujer_68", "tasa_hombre_68", "tasa_mujer_78", "tasa_hombre_78",
 #                   "tasa_mujer_88", "tasa_hombre_88"
 #                   )   
-vars_interes <- c("tasa_white_88", "tasa_black_88", 
-                  "tasa_hombre_88", "tasa_mujer_88", "casos_totales68", "casos_totales78", "casos_totales88",
+vars_interes <- c("tasa_mujer_88", "tasa_white_88", "tasa_black_88", 
+                  "tasa_hombre_88", "casos_totales68", "casos_totales78", "casos_totales88",
                   "pop_total68", "pop_total78", "pop_total88", "cambio_78_88", "cambio_68_88", "cambio_68_78"
                   )   
 
@@ -659,16 +659,18 @@ corrplot(matriz_cor,
          type = "upper", 
          order = "hclust", # Agrupa variables similares
          addCoef.col = "black", # Muestra el número
-         tl.col = "black", tl.srt = 45, # Etiquetas
+         tl.cex = 0.8,      # Tamaño de etiquetas (nombres de variables)
+         number.cex = 0.7,  # Tamaño de los números de correlación
+         tl.col = "black", tl.srt = 35, # Etiquetas
          col = brewer.pal(n = 8, name = "RdBu"), # Rojo (negativo) a Azul (positivo)
          diag = FALSE,
          title = "\nRelación entre Tasas de Cáncer y Demografía",
          mar = c(0,0,1,0))
 
-numericas <- ohlung %>% dplyr::select(tasa_white_88, tasa_black_88, tasa_hombre_88,  tasa_mujer_88, casos_totales68, casos_totales78, casos_totales88,
-                  pop_total68, pop_total78, pop_total88, cambio_78_88, cambio_68_88, cambio_68_78) %>% 
-  sf::st_drop_geometry()
-pairs.panels(numericas)
+# numericas <- ohlung %>% dplyr::select(tasa_white_88, tasa_black_88, tasa_hombre_88,  tasa_mujer_88, casos_totales68, casos_totales78, casos_totales88,
+#                   pop_total68, pop_total78, pop_total88, cambio_78_88, cambio_68_88, cambio_68_78) %>% 
+#   sf::st_drop_geometry()
+# pairs.panels(numericas)
 ```
 
 
@@ -982,10 +984,6 @@ El Test de Moran Global confirma la existencia de una fuerte autocorrelación es
 # 1. Calculamos el Moran Local usando la matriz ganadora (KNN7)
 local_moran <- localmoran(ohlung$tasa_mujer_88, W_seleccionada, zero.policy = TRUE)
 
-# Dividimos el área gráfica en 1 fila y 2 columnas
-grid.newpage()
-
-pushViewport(viewport(layout = grid.layout(1, 2)))
 
 print_moran_plot <- function() {
   par(mar = c(5, 4, 4, 1), new = FALSE)
@@ -1015,7 +1013,7 @@ mtext("Cuadrantes: Superior-Derecha (Alto-Alto), Inferior-Izquierda (Bajo-Bajo)"
 }
 
 # Dibujar el primer gráfico en la columna 1
-print(print_moran_plot(), vp = viewport(layout.pos.row = 1, layout.pos.col = 1))
+print(print_moran_plot())
 
 # 2. Preparar los datos para el mapeo
 ohlung$moran_i <- local_moran[,1]     # Índice de Moran local
@@ -1036,8 +1034,9 @@ ohlung$cluster[tasa_scale < 0 & lag_scale > 0 & ohlung$p_valor < 0.05] <- "Bajo-
 # Primero preparamos una columna de etiquetas solo para los significativos
 ohlung$etiqueta_lisa <- ifelse(ohlung$cluster == "No Significativo", "", as.character(ohlung$NAME))
 
-
-mapa_lisa <- tm_shape(ohlung) +
+ 
+# 5. Dibujar el mapa con tmap
+tm_shape(ohlung) +
   tm_polygons("cluster", 
               title = "Clústeres LISA (Tasa 88)",
               palette = c("Alto-Alto (Hotspot)" = "#e31a1c", 
@@ -1055,25 +1054,6 @@ mapa_lisa <- tm_shape(ohlung) +
             legend.title.size = 0.8,
             legend.text.size = 0.6,
             frame = FALSE)
-
-# Dibujar el mapa en la columna 2
-print(mapa_lisa, vp = viewport(layout.pos.row = 1, layout.pos.col = 2))
-
-
-# 
-# # 5. Dibujar el mapa con tmap
-# tm_shape(ohlung) +
-#   tm_polygons("cluster",
-#               title = "Clústeres LISA (Tasa 88)",
-#               palette = c("Alto-Alto (Hotspot)" = "#FF0000",
-#                          "Bajo-Bajo (Coldspot)" = "#2F00FF",
-#                          "Alto-Bajo (Atípico)" = "#D24AF7",
-#                          "Bajo-Alto (Atípico)" = "#9900FF",
-#                          "No Significativo" = "white"),
-#               border.col = "black",
-#               lwd = 0.5) +
-#   tm_layout(main.title = "Mapa de Clústeres de Cáncer de Pulmón",
-#             legend.outside = TRUE)
 ```
 
 El patrón espacial es heterogéneo. Tienes un gradiente claro: un noroeste "sano" (azul) frente a un sur y sureste con focos críticos (rojo). 
@@ -1231,27 +1211,37 @@ library(glmnet)
 
 sum(ohlung$LF88 == 0, na.rm = TRUE)
 
-mco_completo <- lm(tasa_mujer_88 ~ AREA + PERIMETER +  tasa_black_68 + tasa_white_68 + tasa_68+  tasa_hombre_68  + casos_totales68 + pop_total68 + tasa_mujer_68 + cambio_78_88 + cambio_68_88 +cambio_68_78 + tasa_black_78 + tasa_white_78 + tasa_78+  tasa_hombre_78  + casos_totales78 + pop_total78 + tasa_mujer_78 +tasa_black_88 + tasa_white_88 + tasa_88 +  tasa_hombre_88  + casos_totales88 + pop_total88 ,
-               data = ohlung)
-summary(mco_completo)
 
-lm.morantest(mco_completo, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+# correccion del modelo completo 
+mco_ajus1 <- lm(tasa_mujer_88 ~   tasa_hombre_78  +  tasa_hombre_88  + tasa_mujer_78 +tasa_white_88,
+               data = ohlung)
+
+bc <- boxcox(mco_ajus1)
+(lambda <- bc$x[which.max(bc$y)])
+
+mco_completo <- lm(tasa_mujer_88^lambda ~ AREA + PERIMETER +  tasa_black_68 + tasa_white_68 + tasa_68+  tasa_hombre_68  + casos_totales68 + pop_total68 + tasa_mujer_68 + cambio_78_88 + cambio_68_88 +cambio_68_78 + tasa_black_78 + tasa_white_78 + tasa_78+  tasa_hombre_78  + casos_totales78 + pop_total78 + tasa_mujer_78 +tasa_black_88 + tasa_white_88 + tasa_88 +  tasa_hombre_88  + casos_totales88 + pop_total88 ,
+               data = ohlung)
+# summary(mco_completo)
+# 
+# lm.morantest(mco_completo, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 
 # 3. Selección automática de variables (Stepwise)
 # 'direction = "both"' quita y pone variables hasta encontrar el mejor AIC
 mco_final <- stepAIC(mco_completo, direction = "both", trace = FALSE)
 
-# summary(mco_final)
-# lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
-# check_model(mco_final)
+summary(mco_final)
+lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+check_model(mco_final)
 
 # correccion del modelo completo 
-mco_ajus1 <- lm(tasa_mujer_88 ~  cambio_78_88   +  tasa_hombre_78     + tasa_white_88  +  tasa_hombre_88   ,
+mco_ajus1 <- lm(tasa_mujer_88^0.9 ~  tasa_hombre_78  +  tasa_hombre_88 +tasa_white_88,
                data = ohlung)
 summary(mco_ajus1)
 
 check_model(mco_ajus1)
 lm.morantest(mco_ajus1, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
 ```
 
 Se evalua el mejor modelo con pruebas mas robustas de Anselin (lm.RStests) que controlan por la posible presencia simultánea de ambos tipos de dependencia espacial (lag y error).
@@ -1267,26 +1257,54 @@ print(diagnostico_espacial)
 
 Este resultado es muy interesante porque contradice lo que parecía un modelo "limpio" y revela una estructura espacial oculta que solo las pruebas robustas logran detectar.
 
-### Las Pruebas Simples (RSerr y RSlag)
-
-* RSerr (Error): Tiene un p-valor de 0.7663. No es significativo.
-
-* RSlag (Lag): Tiene un p-valor de 0.0622. Está muy cerca del límite (0.05), pero técnicamente no es significativo al 5%.
 
 
-### Las Pruebas Robustas (¡Las que mandan aquí!)
-Cuando las pruebas simples fallan o son dudosas, miramos las ajustadas/robustas (adjRS). Estas pruebas controlan por la posible presencia de ambos tipos de dependencia espacial al mismo tiempo.
+### *Independecia*
 
-* adjRSerr (p = 0.0060): Muy significativo.
-* adjRSlag (p = 0.0009): Extremadamente significativo.
+```{r acf}
+acf(residuals(mco_ajus1), main = "ACF de los residuales", col = "blue", lwd = 2)
 
-A veces, un tipo de dependencia espacial (lag) "enmascara" a la otra (error). Las pruebas robustas limpian ese efecto mutuo.
+```
 
-Para elegir el modelo seguimos la regla de decisión de Anselin:
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
 
-  Si ambas pruebas robustas son significativas (como ocurre aquí), elegimos la que tenga el p-valor más pequeño o el estadístico más alto: adjRSlag ($p = 0.0009$) es mucho más pequeño que adjRSerr ($p = 0.0060$)  un Modelo de Retardo Espacial (Spatial Lag Model - SAR).
-  
-Esto indica que, incluso después de controlar por población, raza y tasas históricas, la tasa de cáncer de un municipio sí está influenciada directamente por las tasas de sus vecinos. Existe un efecto de "derrame" o contagio espacial (spillover) que el modelo MCO no estaba captando.
+```{r independencia }
+dwtest(mco_ajus1)
+```
+Con un p-valor de 0.1043 (que es mayor al nivel de significancia estándar de 0.05), no rechazas la hipótesis nula. Esto significa que no hay evidencia suficiente para afirmar que existe autocorrelación en los residuos.
+
+### *Normalidad*
+
+```{r graficos normales }
+hist(residuals(mco_ajus1),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(mco_ajus1), main = "QQ-Plot de los residuales")
+qqline(residuals(mco_ajus1), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba }
+shapiro.test(residuals(mco_ajus1))
+library(tseries)
+jarque.bera.test(residuals(mco_ajus1))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan , echo=FALSE, message=FALSE, warning=FALSE}
+bptest(mco_ajus1)
+
+```
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+
+
+
 
 
 
@@ -1596,7 +1614,7 @@ Compararemos cómo cada modelo predice la **tasa** final.
 ohlung$pred_mco <- predict(mco_ajus1)
 
 # Predicciones de tasa para Poisson (Exp(log_mu) / población)
-ohlung$pred_poisson <- predict(qpoisson_final, type = "response") / ohlung$POPF88
+ohlung$pred_poisson <- predict(poisson_final, type = "response") / ohlung$POPF88
 
 # Gráfico de comparación: Observado vs Predicho
 ggplot(ohlung, aes(x = tasa_mujer_88)) +
@@ -1626,26 +1644,6 @@ res_poisson <- residuals(qpoisson_final, type = "pearson")
 moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 ```
 
-
-
-
-
-
-
-
-
-
-
-Basado en los resultados de las pruebas de diagnóstico que proporcionas, el modelo espacial indicado para tu caso es el **Modelo de Error Espacial (SEM - Spatial Error Model)**.
-
-### Justificación Técnica de la Elección
-La selección del modelo se basa en la **Regla de Decisión de Anselin** para los tests del Multiplicador de Lagrange (LM):
-
-1.  **Pruebas Simples:** Tu resultado muestra que el componente de error (**RSerr**) es estadísticamente significativo ($p = 0.005299$), mientras que el componente de retardo o lag (**RSlag**) no lo es ($p = 0.2448$) [Resultados del usuario].
-2.  **Pruebas Robustas:** Al observar las pruebas ajustadas, el **adjRSerr** mantiene su significancia ($p = 0.005178$), mientras que el **adjRSlag** sigue siendo no significativo ($p = 0.2377$) [Resultados del usuario].
-3.  **Conclusión:** Cuando solo las pruebas de error son significativas (tanto la simple como la robusta), el diagnóstico es contundente hacia una estructura de **dependencia espacial en los residuos**. Esto indica que existen variables omitidas con estructura espacial o efectos de vecindad que afectan el error, pero no un efecto de "contagio" directo de la variable dependiente.
-
-Dado que estás trabajando con un modelo de **Poisson** (datos de conteo), la técnica recomendada en tus fuentes para "limpiar" esta autocorrelación en los residuales es el **Filtrado Espacial de Eigenvectores de Moran (MESF)**. Esta técnica extrae la estructura espacial de los errores y la transfiere al intercepto del modelo mediante variables sintéticas (eigenvectores).
 
 
 
@@ -1724,5 +1722,101 @@ print(AIC_comparativa)
 library(performance)
 check_overdispersion(fit_poisson_mesf)
 ```
+
+
+## Comparación de Modelos Aspaciales y Espaciales
+
+Dado que los modelos de la familia `quasipoisson` no proporcionan un AIC estándar, implementamos una función para calcular el **QAIC** y comparamos la **Razón de Dispersión (Devianza)** y la **Autocorrelación (Moran)** entre los modelos ajustados.
+
+```{r comparacion-modelos-avanzada}
+library(performance)
+library(knitr)
+
+# 1. Función para calcular QAIC manualmente
+# Nota: Usamos el logLik del modelo Poisson base y la dispersión del Quasi
+calcular_qaic <- function(modelo_quasi, modelo_poisson_base) {
+  phi <- summary(modelo_quasi)$dispersion
+  ll <- as.numeric(logLik(modelo_poisson_base))
+  k <- length(coef(modelo_quasi))
+  return(-2 * ll / phi + 2 * k)
+}
+
+# Función para calcular QBIC (análogo al BIC para modelos Quasi)
+calcular_qbic <- function(modelo_quasi, modelo_poisson_base) {
+  phi <- summary(modelo_quasi)$dispersion
+  ll <- as.numeric(logLik(modelo_poisson_base))
+  k <- length(coef(modelo_quasi))
+  n <- length(residuals(modelo_quasi))
+  return(-2 * ll / phi + k * log(n))
+}
+
+# 2. Extracción de Razón de Dispersión y Moran
+get_diag <- function(modelo, w_mat) {
+  res <- residuals(modelo, type = "pearson")
+  m_test <- moran.test(res, w_mat, zero.policy = TRUE)
+  ratio <- sum(res^2) / df.residual(modelo)
+  return(list(ratio = ratio, moran_p = m_test$p.value))
+}
+
+# 3. Construcción de la Tabla Comparativa
+modelos_nombres <- c("MCO (Normal)", "Poisson Final", "Quasi-Poisson", "Poisson MESF", "Quasi-Poisson MESF")
+
+tab_comp <- data.frame(
+  Modelo = modelos_nombres,
+  
+  # AIC / QAIC
+  AIC_QAIC = c(
+    AIC(mco_ajus1), 
+    AIC(poisson_final), 
+    calcular_qaic(qpoisson_final, poisson_final),
+    AIC(fit_poisson_mesf),
+    calcular_qaic(fit_qpoisson_mesf, fit_poisson_mesf)
+  ),
+  
+  # BIC / QBIC
+  BIC_QBIC = c(
+    BIC(mco_ajus1),
+    BIC(poisson_final),
+    calcular_qbic(qpoisson_final, poisson_final),
+    BIC(fit_poisson_mesf),
+    calcular_qbic(fit_qpoisson_mesf, fit_poisson_mesf)
+  ),
+
+  # Log-Likelihood (Pura medida de ajuste)
+  LogLik = c(
+    logLik(mco_ajus1),
+    logLik(poisson_final),
+    NA, # Quasi-modelos no tienen LogLik real
+    logLik(fit_poisson_mesf),
+    NA
+  ),
+  
+  Dispersion_Ratio = c(
+    NA, # MCO no aplica ratio de conteo
+    check_overdispersion(poisson_final)$dispersion_ratio,
+    summary(qpoisson_final)$dispersion,
+    check_overdispersion(fit_poisson_mesf)$dispersion_ratio,
+    summary(fit_qpoisson_mesf)$dispersion
+  ),
+  
+  Moran_p_value = c(
+    get_diag(mco_ajus1, W_seleccionada)$moran_p,
+    get_diag(poisson_final, W_seleccionada)$moran_p,
+    get_diag(qpoisson_final, W_seleccionada)$moran_p,
+    get_diag(fit_poisson_mesf, W_seleccionada)$moran_p,
+    get_diag(fit_qpoisson_mesf, W_seleccionada)$moran_p
+  )
+)
+
+knitr::kable(tab_comp, digits = 4, caption = "Comparativa de Criterios de Información y Diagnóstico Espacial")
+
+
+```
+
+1. **QAIC:** El modelo con el valor más bajo de QAIC será el preferido en términos de equilibrio entre ajuste y parsimonia, considerando la estructura de varianza corregida.
+
+2. **Independencia Espacial:** Si el `Moran_p_value` es > 0.05, el modelo (especialmente los MESF) ha logrado cumplir el supuesto de independencia, lo cual es el objetivo principal del filtrado de eigenvectores.
+
+3. **Dispersión:** Para los datos de Ohio, que han mostrado subdispersión o sobredispersión moderada, el modelo que acerque el `Dispersion_Ratio` a 1 será el más confiable para la inferencia de los p-valores.
 
 
