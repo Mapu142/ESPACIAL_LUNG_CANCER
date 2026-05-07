@@ -1390,6 +1390,444 @@ Para elegir el modelo seguimos la regla de decisión de Anselin:
   
 Esto indica que, incluso después de controlar por población, raza y tasas históricas, la tasa de cáncer de un municipio sí está influenciada directamente por las tasas de sus vecinos. Existe un efecto de "derrame" o contagio espacial (spillover) que el modelo MCO no estaba captando.
 
+### 1.  Modelo Poisson
+Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
+
+```{r poisson_fit, fig.height=10, fig.width=10}
+# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
+fit_poisson <- glm(LF88  ~ PERIMETER +  tasa_white_78 + cambio_68_78 , 
+                   offset = log(POPF88),
+                   family = poisson(link = "log"), 
+                   data = ohlung)
+
+summary(fit_poisson)
+
+check_model(fit_poisson)
+check_overdispersion(fit_poisson)
+
+
+poisson_final <- stepAIC(fit_poisson, direction = "both", trace = FALSE)
+
+summary(poisson_final)
+
+lm.morantest(poisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(poisson_final)
+check_overdispersion(poisson_final)
+
+# 1. Asegurarnos de usar la nueva función lm.RStests
+diagnostico_espacial <- lm.RStests(poisson_final, W_seleccionada, test = "all", zero.policy = TRUE)
+
+# 2. Mostrar los resultados
+print(diagnostico_espacial)
+
+```
+
+
+
+### *Independecia*
+
+```{r acf glm_qp}
+acf(residuals.glm(poisson_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_qp}
+dwtest(poisson_final)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(poisson_final),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la $H_0$ de independencia espacial, es decir en los residuales se presenta dependencia espacial, y es motivo para realizar un modelo espacial,
+### *Normalidad*
+
+```{r graficos normales glm_qp}
+hist(residuals.glm(poisson_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(poisson_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(poisson_final), col = "red", lwd = 2)
+```
+
+El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+
+Para confirmar si l distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_qp}
+shapiro.test(residuals.glm(poisson_final))
+```
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_qp, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(poisson_final)
+
+```
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion}
+
+check_overdispersion(poisson_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_poisson$deviance / fit_poisson$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+
+
+### 1.  Modelo quasi Poisson
+Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
+
+```{r qpoisson_fit, fig.height=10, fig.width=10}
+# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
+fit_qpoisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 , 
+                   offset = log(POPF88),
+                   family = quasipoisson(link = "log"), 
+                   data = ohlung)
+
+summary(fit_qpoisson)
+
+check_model(fit_qpoisson)
+check_overdispersion(fit_qpoisson)
+
+
+qpoisson_final <- glm(LF88  ~ tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88   , 
+                   offset = log(POPF88),
+                   family = quasipoisson(link = "log"), 
+                   data = ohlung)
+
+summary(qpoisson_final)
+
+lm.morantest(qpoisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(qpoisson_final)
+check_overdispersion(qpoisson_final)
+
+```
+
+
+
+### *Independecia*
+
+```{r acf 2}
+acf(residuals.glm(qpoisson_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia 2}
+dwtest(qpoisson_final)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+### *Normalidad*
+
+```{r graficos normales 2}
+hist(residuals.glm(qpoisson_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(qpoisson_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(qpoisson_final), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba 2}
+shapiro.test(residuals.glm(qpoisson_final))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan 2, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(qpoisson_final)
+
+```
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion2}
+
+check_overdispersion(qpoisson_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_qpoisson$deviance / fit_qpoisson$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+
+
+
+### 1. Binomial negativo
+Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
+
+```{r BinomialN_fit, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
+# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
+fit_bn <- glm.nb(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 + offset(log(POPF88)),
+                 data = ohlung)
+
+summary(fit_bn)
+
+check_model(fit_bn)
+check_overdispersion(fit_bn)
+
+
+bn_final <- stepAIC(fit_bn, direction = "both", trace = FALSE)
+
+summary(bn_final)
+
+lm.morantest(bn_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(bn_final)
+check_overdispersion(bn_final)
+
+```
+
+
+
+### *Independecia*
+
+```{r acf 3}
+acf(residuals.glm(bn_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia 3}
+dwtest(bn_final)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+### *Normalidad*
+
+```{r graficos normales 3}
+hist(residuals.glm(bn_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(bn_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(bn_final), col = "red", lwd = 2)
+```
+
+En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba 3}
+shapiro.test(residuals.glm(bn_final))
+```
+De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan 3, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(bn_final)
+
+```
+Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion3}
+
+check_overdispersion(bn_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_bn$deviance / fit_bn$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+
+
+### 1. Doblemente generalizado
+
+```{r doblemente generalizado, fig.height=10, fig.width=10}
+dglm_model <- dglm(formula = LF88 ~ scale(tasa_black_88) + scale(tasa_white_88) + 
+                   scale(tasa_hombre_88) + scale(cambio_78_88) + 
+                   scale(cambio_68_88),
+  # El offset se añade fuera de la escala
+  offset = log(POPF88),
+                   family = poisson(link = "log"),
+                   dfamily = Gamma(link = "log"),   
+                   data = ohlung)
+
+summary(dglm_model)
+check_model(dglm_model)
+
+moran.test(residuals(dglm_model), W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+check_overdispersion(dglm_model)
+```
+
+el comportamiento de los residuales no es para nada normal 
+
+#### 1. Modelo de media
+
+### *Independecia*
+
+```{r acf dglm_media}
+acf(residuals(dglm_model), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_media}
+dwtest(dglm_model)
+```
+En efecto no se rechaza la independencia de los errores, con un p valor mayor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_media}
+hist(residuals(dglm_model),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model), col = "red", lwd = 2)
+```
+
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media}
+shapiro.test(residuals(dglm_model))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_media, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model),
+     residuals(dglm_model,type="pearson"))
+abline(h=0,col="red")
+
+```
+
+Podemos notar que se presenta una varianza creciente con una forma notoria en los residuales de cono.
+
+#### 1. Modelo de dispersión
+
+### *Independecia*
+
+```{r acf dglm_varianza}
+moran.test(residuals(dglm_model$dispersion.fit),  W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+acf(residuals(dglm_model$dispersion.fit), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+Se ve una clara alta correlación entre los residuales, pero para tener una confirmación más formal se decidió aplicar una prueba de $Durbin-Watson$.
+
+```{r independencia dglm_varianza}
+dwtest(dglm_model$dispersion.fit)
+```
+En efecto no se rechaza la independencia de los errores, con un p valor mayor al nivel de significancia.
+
+### *Normalidad*
+
+```{r graficos normales dglm_varianza}
+hist(residuals(dglm_model$dispersion.fit),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model$dispersion.fit), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model$dispersion.fit), col = "red", lwd = 2)
+```
+
+
+Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba dglm_media2}
+shapiro.test(residuals(dglm_model$dispersion.fit))
+```
+Se confirma la no normalidad de los errores con un p valor menor al nivel de significancia.
+
+
+### *Homocedasticidad*
+
+```{r grafico dispersion dglm_varianza, echo=FALSE, message=FALSE, warning=FALSE}
+plot(fitted(dglm_model$dispersion.fit),
+     residuals(dglm_model$dispersion.fit))
+abline(h=0,col="red")
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+### 3. Comparación Visual de Predicciones
+Compararemos cómo cada modelo predice la **tasa** final.
+
+```{r comparison_plot}
+# Predicciones de tasa para MCO
+ohlung$pred_mco <- predict(mco_final)
+
+# Predicciones de tasa para Poisson (Exp(log_mu) / población)
+ohlung$pred_poisson <- predict(fit_poisson, type = "response") / ohlung$POPF88
+
+# Gráfico de comparación: Observado vs Predicho
+ggplot(ohlung, aes(x = tasa_mujer_88)) +
+  geom_point(aes(y = pred_mco, color = "MCO"), alpha = 0.5) +
+  geom_point(aes(y = pred_poisson, color = "Poisson"), alpha = 0.5) +
+  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
+  labs(title = "Tasas Observadas vs Predichas",
+       x = "Tasa Mujer 88 (Observada)",
+       y = "Tasa Predicha") +
+  theme_minimal()
+```
+
+### 4. Autocorrelación Espacial en Residuales de Poisson
+Es vital verificar si el modelo de Poisson ha capturado la estructura espacial mejor o peor que el OLS.
+
+```{r moran_poisson}
+# Cálculo de residuales de Pearson para el test de Moran
+res_poisson <- residuals(fit_poisson, type = "pearson")
+
+# Test de Moran
+moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+```
 
 
 # Selección del mejor modelo
