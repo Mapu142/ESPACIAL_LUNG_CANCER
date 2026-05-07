@@ -1170,6 +1170,8 @@ La comparación bajo una escala unificada demuestra que, al eliminar el ruido es
 
 ## Modelo Lag
 
+Se incorporó un rezago espacial de la variable respuesta como aproximación para capturar dependencia espacial residual no explicada por el modelo Poisson inicial.
+
 ```{r creacion rezagos en Y, include=FALSE}
 # variable respuesta rezagada
 Y <- ohlung[,c("LF88","POPF88")] %>% sf::st_drop_geometry()
