@@ -1443,7 +1443,9 @@ Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se 
 ```{r}
 moran.test(residuals.glm(poisson_final),W_seleccionada)
 ```
-Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la $H_0$ de independencia espacial, es decir en los residuales se presenta dependencia espacial, y es motivo para realizar un modelo espacial,
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la $H_0$ de independencia espacial, es decir en los residuales se presenta dependencia espacial, y es motivo para realizar un modelo espacial.
+
+
 ### *Normalidad*
 
 ```{r graficos normales glm_qp}
@@ -1470,10 +1472,12 @@ Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la poblac
 bptest(poisson_final)
 
 ```
-Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
 
 
 #### Verificación de Sobredispersión
+
+
 Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
 
 ```{r overdispersion}
@@ -1494,7 +1498,7 @@ Para que la comparación sea válida, utilizaremos los mismos predictores, pero 
 
 ```{r qpoisson_fit, fig.height=10, fig.width=10}
 # Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
-fit_qpoisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 , 
+fit_qpoisson <- glm(LF88  ~ PERIMETER +  tasa_white_78 + cambio_68_78 , 
                    offset = log(POPF88),
                    family = quasipoisson(link = "log"), 
                    data = ohlung)
@@ -1505,7 +1509,7 @@ check_model(fit_qpoisson)
 check_overdispersion(fit_qpoisson)
 
 
-qpoisson_final <- glm(LF88  ~ tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88   , 
+qpoisson_final <- glm(LF88  ~ tasa_white_78 , 
                    offset = log(POPF88),
                    family = quasipoisson(link = "log"), 
                    data = ohlung)
@@ -1587,7 +1591,7 @@ Para que la comparación sea válida, utilizaremos los mismos predictores, pero 
 
 ```{r BinomialN_fit, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
 # Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
-fit_bn <- glm.nb(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 + offset(log(POPF88)),
+fit_bn <- glm.nb(LF88  ~ tasa_white_78 + cambio_68_78 + offset(log(POPF88)),
                  data = ohlung)
 
 summary(fit_bn)
@@ -1672,9 +1676,8 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 ### 1. Doblemente generalizado
 
 ```{r doblemente generalizado, fig.height=10, fig.width=10}
-dglm_model <- dglm(formula = LF88 ~ scale(tasa_black_88) + scale(tasa_white_88) + 
-                   scale(tasa_hombre_88) + scale(cambio_78_88) + 
-                   scale(cambio_68_88),
+dglm_model <- dglm(formula = LF88 ~  scale(tasa_white_88) + 
+                  scale(cambio_68_78),
   # El offset se añade fuera de la escala
   offset = log(POPF88),
                    family = poisson(link = "log"),
@@ -1818,17 +1821,127 @@ ggplot(ohlung, aes(x = tasa_mujer_88)) +
   theme_minimal()
 ```
 
+
 ### 4. Autocorrelación Espacial en Residuales de Poisson
 Es vital verificar si el modelo de Poisson ha capturado la estructura espacial mejor o peor que el OLS.
 
 ```{r moran_poisson}
 # Cálculo de residuales de Pearson para el test de Moran
-res_poisson <- residuals(fit_poisson, type = "pearson")
+res_poisson <- residuals(poisson_final, type = "pearson")
+
+# Test de Moran
+moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+# Cálculo de residuales de Pearson para el test de Moran
+res_poisson <- residuals(qpoisson_final, type = "pearson")
 
 # Test de Moran
 moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 ```
+# Regresión espacial
 
+## Ajuste del Modelo Espacial: Filtrado de Eigenvectores (MESF)
+
+Tras realizar las pruebas de diagnóstico de dependencia espacial sobre el modelo `poisson_final`, se identificó que el modelo presenta **autocorrelación espacial en el error** (RSerr: $p < 0.01$). Se procede a aplicar un **Filtrado Espacial de Eigenvectores (MESF)** para capturar esta estructura y asegurar la independencia de los residuales.
+
+```{r modelo-espacial-mesf, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
+
+# 1. Identificación de eigenvectores significativos para un GLM (Poisson)
+# Se utiliza la función ME() específica para modelos lineales generalizados
+set.seed(1023) # Para reproducibilidad en las permutaciones
+filtros_espaciales <- ME(LF88 ~ tasa_white_78 + cambio_68_78, 
+                         data = ohlung, 
+                         offset = log(POPF88),
+                         family = poisson(link = "log"), 
+                         listw = W_seleccionada, 
+                         alpha = 0.1)
+
+# 2. Resumen de los filtros encontrados
+print(filtros_espaciales)
+
+# 3. Ajuste del modelo Poisson final incluyendo los filtros espaciales
+# Los filtros actúan como variables explicativas que capturan la estructura del error
+fit_poisson_espacial <- glm(LF88 ~ tasa_white_78 + cambio_68_78+ 
+                                   fitted(filtros_espaciales), 
+                            family = poisson(link = "log"), 
+                            data = ohlung, 
+                            offset = log(POPF88))
+
+summary(fit_poisson_espacial)
+check_model(fit_poisson_espacial)
+```
+
+### Verificación de Residuales Espaciales
+
+Evaluamos si la inclusión de los eigenvectores eliminó la autocorrelación espacial detectada inicialmente.
+
+```{r diagnostico-post-espacial}
+# Test de Moran sobre los residuales del nuevo modelo espacial
+res_espaciales <- residuals(fit_poisson_espacial, type = "pearson")
+moran_post <- moran.test(res_espaciales, W_seleccionada, zero.policy = TRUE)
+print(moran_post)
+
+# Comparación de AIC para verificar la mejora en el ajuste
+
+```
+
+## SLX
+
+```{r include=FALSE}
+# rezagamos las variables
+X <- ohlung[,c('PERIMETER','tasa_white_78','cambio_68_78')] %>% sf::st_drop_geometry()
+WX_knn8 <- create_WX(X,W_seleccionada)
+colnames(WX_knn8) <- c('lag_perimeter','lag_white_78','lag_cambio68_78')
+data_ext_knn8 <- cbind(ohlung, WX_knn8)
+```
+
+```{r modelos espaciales queen y knn8}
+glmLSX_knn8 <- glm(LF88  ~  tasa_white_78 + cambio_68_78 +
+                     lag_white_78+lag_cambio68_78, 
+                   offset = log(POPF88),
+            data=data_ext_knn8,family = poisson(link = "log"))
+summary(glmLSX_knn8)
+```
+
+```{r mroan para queen y knn8}
+moran.test(residuals(glmLSX_knn8), listw = W_seleccionada)
+
+```
+## Modelo Lag
+
+```{r creacion rezagos en Y, include=FALSE}
+# variable respuesta rezagada
+Y <- ohlung[,c("LF88","POPF88")] %>% sf::st_drop_geometry()
+WY_knn8 <- create_WX(Y,W_seleccionada)
+colnames(WY_knn8) <- c('lag_LF88','lag_POPF88')
+Y_ext_knn8 <- cbind(ohlung,WY_knn8)
+```
+
+
+```{r modelos lag}
+glmlag_knn8 <- glm(LF88  ~ tasa_white_78 + cambio_68_78 +
+                     lag_LF88+lag_POPF88, 
+                   offset = log(POPF88),
+            data=Y_ext_knn8,family = poisson(link = "log"))
+summary(glmlag_knn8)
+```
+```{r moran modelos lag}
+moran.test(residuals(glmlag_knn8), listw = W_seleccionada)
+
+```
+```{r}
+ohlung_ext <- cbind(ohlung,WY_knn8,WX_knn8)
+glmlagXY<- glm(LF88  ~ tasa_white_78 + cambio_68_78 +
+                 lag_white_78+lag_cambio68_78+
+                     lag_LF88+lag_POPF88, 
+                   offset = log(POPF88),
+            data=ohlung_ext,family = poisson(link = "log"))
+summary(glmlagXY)
+```
+```{r moran modelos lag XY}
+moran.test(residuals(glmlagXY), listw = W_seleccionada)
+
+```
 
 # Selección del mejor modelo
 
@@ -1896,7 +2009,28 @@ digraph modelo {
 ")
 ```
 
+### Comparacion de modelos por AIC
 
+```{r modelo-gp, fig.height=10, fig.width=10}
 
+# Comparación de Criterios de Información (AIC)
+# Se espera que el AIC sea significativamente menor al del Poisson final (394.06)
+model_comparison <- data.frame(
+  Modelo = c("Normal", "Poisson Final", "Binom. Negativa", "quasi Poisson"),
+  AIC = c(AIC(mco_final), AIC(poisson_final), AIC(bn_final), AIC(qpoisson_final))
+)
+print(model_comparison)
+
+# Si el p-valor es < 0.05, la Binomial Negativa es mejor que Poisson
+p_valor_test <- 1 - pchisq(2 * (logLik(poisson_final) - logLik(bn_final)), df = 1)
+print(paste("P-valor del test de sobredispersión:", p_valor_test))
+```
+```{r}
+AIC_comp <- data.frame(
+  Modelo = c("Poisson Final (Aspacial)", "Poisson MESF (Espacial)"),
+  AIC = c(AIC(poisson_final), AIC(fit_poisson_espacial))
+)
+print(AIC_comp)
+```
 
 
