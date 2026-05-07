@@ -1229,8 +1229,9 @@ Para decidir si la dependencia espacial debe modelarse en la **variable dependie
 library(MASS)
 library(glmnet)
 
+sum(ohlung$LF88 == 0, na.rm = TRUE)
 
-mco_completo <- lm(tasa_mujer_88 ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 ,
+mco_completo <- lm(tasa_mujer_88 ~ AREA + PERIMETER +  tasa_black_68 + tasa_white_68 + tasa_68+  tasa_hombre_68  + casos_totales68 + pop_total68 + tasa_mujer_68 + cambio_78_88 + cambio_68_88 +cambio_68_78 + tasa_black_78 + tasa_white_78 + tasa_78+  tasa_hombre_78  + casos_totales78 + pop_total78 + tasa_mujer_78 +tasa_black_88 + tasa_white_88 + tasa_88 +  tasa_hombre_88  + casos_totales88 + pop_total88 ,
                data = ohlung)
 summary(mco_completo)
 
@@ -1240,44 +1241,24 @@ lm.morantest(mco_completo, W_seleccionada, alternative = "two.sided", zero.polic
 # 'direction = "both"' quita y pone variables hasta encontrar el mejor AIC
 mco_final <- stepAIC(mco_completo, direction = "both", trace = FALSE)
 
-summary(mco_final)
+# summary(mco_final)
+# lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+# check_model(mco_final)
 
-lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+# correccion del modelo completo 
+mco_ajus1 <- lm(tasa_mujer_88 ~  cambio_78_88   +  tasa_hombre_78     + tasa_white_88  +  tasa_hombre_88   ,
+               data = ohlung)
+summary(mco_ajus1)
 
-check_model(mco_final)
-#----------------
-
-
-# 2. Preparar los datos (Lasso requiere matrices, no data.frames)
-# Seleccionamos las columnas numéricas que quieres evaluar
-columnas_x <- c("AREA", "PERIMETER", "tasa_black_88", "tasa_white_88", "tasa_hombre_88",
-                     "tasa_88", "casos_totales88", "pop_total88", "cambio_78_88", "cambio_68_88")
-
-# Creamos la matriz X (predictores) y el vector Y (respuesta)
-# Eliminamos filas con NA si las hubiera
-datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_mujer_88", columnas_x)])
-x <- as.matrix(datos_limpios[, -1])
-y <- datos_limpios$tasa_mujer_88
-
-# 3. Ajustar el modelo Lasso con Validación Cruzada para encontrar el mejor 'lambda'
-lasso_cv <- cv.glmnet(x, y, alpha = 1) # alpha = 1 es Lasso
-
-# 4. Ver los coeficientes seleccionados
-# Buscamos el lambda que da el menor error
-coeficientes_finales <- coef(lasso_cv, s = "lambda.min")
-print(coeficientes_finales)
-
-# 5. Visualizar la importancia de las variables
-plot(lasso_cv)
-
-
+check_model(mco_ajus1)
+lm.morantest(mco_ajus1, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 ```
 
 Se evalua el mejor modelo con pruebas mas robustas de Anselin (lm.RStests) que controlan por la posible presencia simultánea de ambos tipos de dependencia espacial (lag y error).
 
 ```{r lm_tests_robustos, echo=FALSE}
 # 1. Asegurarnos de usar la nueva función lm.RStests
-diagnostico_espacial <- lm.RStests(mco_final, W_seleccionada, test = "all", zero.policy = TRUE)
+diagnostico_espacial <- lm.RStests(mco_ajus1, W_seleccionada, test = "all", zero.policy = TRUE)
 
 # 2. Mostrar los resultados
 print(diagnostico_espacial)
@@ -1323,27 +1304,22 @@ library(ggplot2)
 Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
 
 ```{r poisson_fit, fig.height=10, fig.width=10}
-# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
-fit_poisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 , 
+fit_poisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_68 + tasa_white_68 + tasa_68+  tasa_hombre_68  + casos_totales68 + pop_total68 + tasa_mujer_68 + cambio_78_88 + cambio_68_88 +cambio_68_78 + tasa_black_78 + tasa_white_78 + tasa_78+  tasa_hombre_78  + casos_totales78 + pop_total78 + tasa_mujer_78 +tasa_black_88 + tasa_white_88 + tasa_88 +  tasa_hombre_88  + casos_totales88 + pop_total88,
                    offset = log(POPF88),
                    family = poisson(link = "log"), 
                    data = ohlung)
 
-summary(fit_poisson)
-
-check_model(fit_poisson)
-check_overdispersion(fit_poisson)
-
+# summary(fit_poisson)
+# check_model(fit_poisson)
+# check_overdispersion(fit_poisson)
 
 poisson_final <- stepAIC(fit_poisson, direction = "both", trace = FALSE)
 
 summary(poisson_final)
-
 lm.morantest(poisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
-
-
 check_model(poisson_final)
 check_overdispersion(poisson_final)
+
 
 # 1. Asegurarnos de usar la nueva función lm.RStests
 diagnostico_espacial <- lm.RStests(poisson_final, W_seleccionada, test = "all", zero.policy = TRUE)
@@ -1418,28 +1394,24 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
 
 ```{r qpoisson_fit, fig.height=10, fig.width=10}
-# Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
-fit_qpoisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 , 
+
+fit_qpoisson <- glm(LF88  ~ AREA + PERIMETER +  tasa_black_68 + tasa_white_68 + tasa_68+  tasa_hombre_68  + casos_totales68 + pop_total68 + tasa_mujer_68 + cambio_78_88 + cambio_68_88 +cambio_68_78 + tasa_black_78 + tasa_white_78 + tasa_78+  tasa_hombre_78  + casos_totales78 + pop_total78 + tasa_mujer_78 +tasa_black_88 + tasa_white_88 + tasa_88 +  tasa_hombre_88  + casos_totales88 + pop_total88 , 
                    offset = log(POPF88),
                    family = quasipoisson(link = "log"), 
                    data = ohlung)
 
-summary(fit_qpoisson)
+# summary(fit_qpoisson)
+# check_model(fit_qpoisson)
+# check_overdispersion(fit_qpoisson)
 
-check_model(fit_qpoisson)
-check_overdispersion(fit_qpoisson)
 
-
-qpoisson_final <- glm(LF88  ~ tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88   , 
+qpoisson_final <- glm(LF88  ~ cambio_78_88   + tasa_mujer_78      , 
                    offset = log(POPF88),
                    family = quasipoisson(link = "log"), 
                    data = ohlung)
 
 summary(qpoisson_final)
-
 lm.morantest(qpoisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
-
-
 check_model(qpoisson_final)
 check_overdispersion(qpoisson_final)
 
@@ -1512,19 +1484,15 @@ Para que la comparación sea válida, utilizaremos los mismos predictores, pero 
 
 ```{r BinomialN_fit, fig.height=10, fig.width=10, message=FALSE, warning=FALSE}
 # Nota: Quitamos casos_totales88 y pop_total88 de los predictores para evitar circularidad
-fit_bn <- glm.nb(LF88  ~ AREA + PERIMETER +  tasa_black_88 + tasa_white_88 + tasa_hombre_88  + casos_totales88 + pop_total88 + cambio_78_88 + cambio_68_88 + offset(log(POPF88)),
+fit_bn <- glm.nb(LF88  ~ cambio_78_88 + cambio_68_88 +cambio_68_78 + tasa_black_78 + tasa_white_78 +  tasa_hombre_78  + casos_totales78 + pop_total78 + tasa_mujer_78 +tasa_black_88 + tasa_white_88 +  tasa_hombre_88  + casos_totales88 + pop_total88 + offset(log(POPF88)),
                  data = ohlung)
 
-summary(fit_bn)
-
-check_model(fit_bn)
-check_overdispersion(fit_bn)
-
-
+# summary(fit_bn)
+# check_model(fit_bn)
+# check_overdispersion(fit_bn)
 bn_final <- stepAIC(fit_bn, direction = "both", trace = FALSE)
 
 summary(bn_final)
-
 lm.morantest(bn_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
 
 
@@ -1597,10 +1565,7 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 ### 1. Doblemente generalizado
 
 ```{r doblemente generalizado, fig.height=10, fig.width=10}
-dglm_model <- dglm(formula = LF88 ~ scale(tasa_black_88) + scale(tasa_white_88) + 
-                   scale(tasa_hombre_88) + scale(cambio_78_88) + 
-                   scale(cambio_68_88),
-  # El offset se añade fuera de la escala
+dglm_model <- dglm(formula = LF88 ~ cambio_78_88    + tasa_white_78  + tasa_mujer_78 +tasa_black_88 + tasa_white_88 +  tasa_hombre_88  + casos_totales88 + pop_total88 ,
   offset = log(POPF88),
                    family = poisson(link = "log"),
                    dfamily = Gamma(link = "log"),   
@@ -1706,18 +1671,22 @@ abline(h=0,col="red")
 
 
 
+### Comparacion de modelos por AIC
 
+```{r modelo-gp, fig.height=10, fig.width=10}
 
+# Comparación de Criterios de Información (AIC)
+# Se espera que el AIC sea significativamente menor al del Poisson final (394.06)
+model_comparison <- data.frame(
+  Modelo = c("Normal", "Poisson Final", "Binom. Negativa", "quasi Poisson"),
+  AIC = c(AIC(mco_ajus1), AIC(poisson_final), AIC(bn_final), AIC(qpoisson_final))
+)
+print(model_comparison)
 
-
-
-
-
-
-
-
-
-
+# Si el p-valor es < 0.05, la Binomial Negativa es mejor que Poisson
+p_valor_test <- 1 - pchisq(2 * (logLik(mco_ajus1) - logLik(bn_final)), df = 1)
+print(paste("P-valor del test de sobredispersión:", p_valor_test))
+```
 
 
 
@@ -1727,10 +1696,10 @@ Compararemos cómo cada modelo predice la **tasa** final.
 
 ```{r comparison_plot}
 # Predicciones de tasa para MCO
-ohlung$pred_mco <- predict(mco_final)
+ohlung$pred_mco <- predict(mco_ajus1)
 
 # Predicciones de tasa para Poisson (Exp(log_mu) / población)
-ohlung$pred_poisson <- predict(fit_poisson, type = "response") / ohlung$POPF88
+ohlung$pred_poisson <- predict(qpoisson_final, type = "response") / ohlung$POPF88
 
 # Gráfico de comparación: Observado vs Predicho
 ggplot(ohlung, aes(x = tasa_mujer_88)) +
@@ -1748,7 +1717,13 @@ Es vital verificar si el modelo de Poisson ha capturado la estructura espacial m
 
 ```{r moran_poisson}
 # Cálculo de residuales de Pearson para el test de Moran
-res_poisson <- residuals(fit_poisson, type = "pearson")
+res_poisson <- residuals(mco_ajus1, type = "pearson")
+
+# Test de Moran
+moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+# Cálculo de residuales de Pearson para el test de Moran
+res_poisson <- residuals(qpoisson_final, type = "pearson")
 
 # Test de Moran
 moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
