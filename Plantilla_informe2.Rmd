@@ -840,6 +840,9 @@ moran.test(ohlung$tasa_mujer_88, W_seleccionada, alternative = "two.sided", zero
 
 El Test de Moran Global confirma la existencia de una fuerte autocorrelación espacial positiva en la tasa de cáncer de pulmón en mujeres para 1988 (I = 0.258; p-valor < 0.0001). Este resultado demuestra que la enfermedad no se distribuye de forma aleatoria en Ohio, sino que forma clústeres significativos. La intensidad de este índice, mayor a la observada en otros grupos demográficos, sugiere que los factores de riesgo subyacentes tienen una marcada estructura geoespacial o socio-ambiental.
 
+
+El diagrama de Dispersión de Moran (Moran Scatterplot) visualiza la relación entre el valor de la tasa en un condado ($z_i$) y el promedio ponderado de sus vecinos ($\sum c_{ij}z_j$).
+
 ```{r mapa_lisa, echo=FALSE, fig.height=5.5, fig.width=10, message=FALSE, warning=FALSE}
 
 # 1. Calculamos el Moran Local usando la matriz ganadora (KNN7)
@@ -864,9 +867,9 @@ local_moran <- localmoran(ohlung$tasa_mujer_88, W_seleccionada, zero.policy = TR
 
 # Usamos 'bg' para resaltar los resultados estadísticos
 legend("bottomright", 
-       legend = c("I de Moran: 0.1548", 
-                  "Valor P:    0.00065",
-                  "Matriz:     KNN8"), 
+       legend = c("I de Moran: 0.258", 
+                  "Valor P:    <0.001",
+                  "Matriz:     Ponderada por tasa_white_88"), 
        cex = 0.9,
        bg = "#D5F5E3", # Un verde claro profesional
        box.col = "darkgreen",
@@ -923,9 +926,12 @@ print(map_lisa)
 El patrón espacial es heterogéneo. Tienes un gradiente claro: un noroeste "sano" (azul) frente a un sur y sureste con focos críticos (rojo). 
 
 
+El dispersograma de Moran para 1988 confirma la existencia de un clúster espacial positivo. La concentración de condados en el cuadrante "Alto-Alto" (como Belmont y Jefferson) evidencia la persistencia de focos de alta incidencia, mientras que condados como Henry y Wayne consolidan zonas de baja tasa en el cuadrante "Bajo-Bajo". La significancia estadística (p = ) respalda la validez de estos agrupamientos espaciales.
 
 
-```{r comparacion_estructural, echo=FALSE, fig.height=10, fig.width=5}
+
+
+```{r comparacion_estructural, echo=FALSE, fig.height=5, fig.width=10}
 # 2. Visualización Topológica
 par(mfrow = c(1, 2), mar = c(0, 0, 1, 0))
 plot(st_geometry(ohlung), border = "grey", main = "Contigüidad Reina")
@@ -941,105 +947,11 @@ plot(W_seleccionada, coords, add = TRUE, col = "red", lwd = 0.5)
 
 La imagen presenta una comparativa de dos estructuras de conectividad espacial para los condados de Ohio. El mapa de la izquierda, denominado "Contigüidad Reina", muestra una red de conexiones basada en la vecindad física, resultando en una malla local y dispersa. Por el contrario, el mapa de la derecha, la matriz W ponderada por *tasa_white_88* , exhibe una red en rojo densamente conectada que vincula a todos los condados entre sí basándose en la similitud (menos interpretable).
 
-
-
-
-## 2. Diagrama de Dispersión de Moran (Moran Scatterplot)
-Este gráfico visualiza la relación entre el valor de la tasa en un condado ($z_i$) y el promedio ponderado de sus vecinos ($\sum c_{ij}z_j$).
-*   **Cuadrantes I y III:** Representan autocorrelación espacial positiva (Hotspots y Coldspots).
-*   **Cuadrantes II y IV:** Representan autocorrelación negativa (Atípicos espaciales).
-
-```{r moran_scatterplot, echo=FALSE}
-# Nota: moran.plot dibuja automáticamente las líneas de los promedios (cuadrantes)
-moran.plot(ohlung$tasa_mujer_88, W_seleccionada, 
-         labels = as.character(ohlung$NAME), 
-         pch = 19, 
-         col = "black",          # Puntos normales en negro
-         bg = "red",             # Puntos influyentes en rojo
-         xlab = "Tasa de Cáncer en mujeres 1988", 
-         ylab = "Tasa Rezagada (Promedio Vecinos Ponderado)",
-         main = "Dispersograma de Moran: Cáncer de Pulmón en Ohio (1988)",
-         las = 1, 
-         cex = 0.7)
-
-# Usamos 'bg' para resaltar los resultados estadísticos
-legend("bottomright", 
-       legend = c("I de Moran: 0.26", 
-                  "Valor P:    9.51e-07",
-                  "Matriz:  Ponderada por tasa_white_88"), 
-       cex = 0.9,
-       bg = "#D5F5E3", # Un verde claro profesional
-       box.col = "darkgreen",
-       inset = 0.02)
-grid(col = "lightgray", lty = "dotted")
-mtext("Cuadrantes: Superior-Derecha (Alto-Alto), Inferior-Izquierda (Bajo-Bajo)", 
-      side = 3, line = -1.5, cex = 0.6, adj = 0.01, col = "darkblue")
-```
-
-El dispersograma de Moran para 1988 confirma la existencia de un clúster espacial positivo. La concentración de condados en el cuadrante "Alto-Alto" (como Belmont y Jefferson) evidencia la persistencia de focos de alta incidencia, mientras que condados como Henry y Wayne consolidan zonas de baja tasa en el cuadrante "Bajo-Bajo". La significancia estadística (p = ) respalda la validez de estos agrupamientos espaciales.
-
-## 3. Exploración de Promedios Móviles Espaciales
-La matriz $W$ actúa como un **operador de rezago espacial**. Al calcular el promedio ponderado de los vecinos, suavizamos la variable para detectar tendencias regionales de largo alcance en lugar de ruido local.
-
-```{r promedios_moviles, echo=FALSE, message=FALSE, warning=FALSE}
-# # Calcular el rezago espacial (promedio móvil)
-ohlung$tasa_lag_mujer88 <- lag.listw(W_seleccionada, ohlung$tasa_mujer_88)
-
-# # Comparar mapa original vs suavizado
-# tmap_arrange(
-#   tm_shape(ohlung) + tm_polygons("tasa_mujer_88", title = "Tasa Original", palette = "Reds"),
-#   tm_shape(ohlung) + tm_polygons("tasa_lag_mujer88", title = "Promedio Móvil (ponderado por tasa_white_88)", palette = "Reds")
-# )
-
-### Gráfico en misma escala
-# 1. ENCONTRAR EL RANGO TOTAL AUTOMÁTICAMENTE
-# Unimos la tasa original y el lag para que la escala sea idéntica
-rango_suavizado <- c(ohlung$tasa_mujer_88, ohlung$tasa_lag_mujer88)
-
-# 2. DEFINIR LOS CORTES (Escala unificada usando Fisher para detectar clústeres)
-# Usamos un mapa temporal para extraer los cortes óptimos de todo el rango
-cortes_unificados <- classInt::classIntervals(rango_suavizado, n = 6, style = "fisher")$brks
-
-# 3. FUNCIÓN PARA LOS MAPAS DE SUAVIZADO
-crear_mapa_suave <- function(variable, titulo) {
-  tm_shape(ohlung) + 
-    tm_polygons(variable, 
-                palette = "Reds",
-                breaks = cortes_unificados, # Forzamos la misma escala en ambos
-                border.col = "white",
-                lwd = 0.5) + 
-    tm_layout(main.title = titulo, 
-              main.title.size = 0.9, 
-              main.title.position = "center",
-              legend.show = FALSE,
-              frame = FALSE)
-}
-
-# 4. CREAR LOS DOS MAPAS
-m_original <- crear_mapa_suave("tasa_mujer_88", "Tasa Mujer 88 (Original)")
-m_suavizado <- crear_mapa_suave("tasa_lag_mujer88", "Tasa Suavizada (Lag)")
-
-# 5. LEYENDA UNIFICADA
-leyenda_suave <- tm_shape(ohlung) + 
-  tm_polygons("tasa_mujer_88", palette = "Reds", 
-              breaks = cortes_unificados,
-              title = "Escala de Tasa\n(Casos/Población)",
-              border.col = "white") + 
-  tm_layout(legend.only = TRUE, legend.position = c("center", "center"))
-
-# 6. RESULTADO LADO A LADO
-# Usamos 1 fila y 3 columnas (Mapa 1, Mapa 2 y Leyenda)
-tmap_arrange(m_original, m_suavizado, leyenda_suave, 
-             nrow = 1, ncol = 3, asp = 0)
-
-
-```
-
 La comparación bajo una escala unificada demuestra que, al eliminar el ruido estadístico local mediante el rezago espacial (Lag), persiste una estructura regional de alta incidencia de cáncer de pulmón en mujeres en el sudeste de Ohio.
 
 # Modelo final
 
-## Modelo Lag
+## Modelo Normal
 
 ```{r creacion rezagos en Y, include=FALSE}
 # variable respuesta rezagada
