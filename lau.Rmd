@@ -1254,3 +1254,523 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 # Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
 ```
 El modelo no parece presentar sobredispersión.
+
+# Apendice de intentos
+```{r apendice, include=FALSE}
+
+## MESF ------------------------------------------------------------------------
+# 1. Cargamos la librería para la selección
+library(MASS)
+library(glmnet)
+
+
+mco_completo <- lm(tasa_mujer_88^0.9 ~  tasa_hombre_68 +tasa_mujer_68   + tasa_hombre_78  +  tasa_hombre_88  + tasa_mujer_78 +tasa_white_88,
+               data = ohlung)
+summary(mco_completo)
+
+lm.morantest(mco_completo, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+# 3. Selección automática de variables (Stepwise)
+# 'direction = "both"' quita y pone variables hasta encontrar el mejor AIC
+mco_final <- stepAIC(mco_completo, direction = "both", trace = FALSE)
+
+summary(mco_final)
+
+lm.morantest(mco_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+check_model(mco_final)
+#----------------
+
+
+# 2. Preparar los datos (Lasso requiere matrices, no data.frames)
+# Seleccionamos las columnas numéricas que quieres evaluar
+columnas_x <- c( "PERIMETER", "tasa_white_78",  "cambio_68_78")
+
+# Creamos la matriz X (predictores) y el vector Y (respuesta)
+# Eliminamos filas con NA si las hubiera
+datos_limpios <- na.omit(st_drop_geometry(ohlung)[, c("tasa_mujer_88", columnas_x)])
+x <- as.matrix(datos_limpios[, -1])
+y <- datos_limpios$tasa_mujer_88
+
+# 3. Ajustar el modelo Lasso con Validación Cruzada para encontrar el mejor 'lambda'
+lasso_cv <- cv.glmnet(x, y, alpha = 1) # alpha = 1 es Lasso
+
+# 4. Ver los coeficientes seleccionados
+# Buscamos el lambda que da el menor error
+coeficientes_finales <- coef(lasso_cv, s = "lambda.min")
+print(coeficientes_finales)
+
+# 5. Visualizar la importancia de las variables
+plot(lasso_cv)
+
+# 1. Asegurarnos de usar la nueva función lm.RStests
+diagnostico_espacial <- lm.RStests(mco_final, W_seleccionada, test = "all", zero.policy = TRUE)
+
+# 2. Mostrar los resultados
+print(diagnostico_espacial)
+
+# indepedencia
+acf(residuals(mco_completo), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(mco_completo)
+
+# Normalidad
+hist(residuals(mco_completo),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(mco_completo), main = "QQ-Plot de los residuales")
+qqline(residuals(mco_completo), col = "red", lwd = 2)
+shapiro.test(residuals(mco_completo))
+
+#Homoscedasticidad
+bptest(mco_completo)
+
+# Modelo poisson ---------------------------------------------------------------
+fit_poisson <- glm(LF88  ~ PERIMETER +  tasa_white_78 + cambio_68_78 , 
+                   offset = log(POPF88),
+                   family = poisson(link = "log"), 
+                   data = ohlung)
+
+summary(fit_poisson)
+
+check_model(fit_poisson)
+check_overdispersion(fit_poisson)
+
+
+poisson_final <- stepAIC(fit_poisson, direction = "both", trace = FALSE)
+
+summary(poisson_final)
+
+lm.morantest(poisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(poisson_final)
+check_overdispersion(poisson_final)
+
+# 1. Asegurarnos de usar la nueva función lm.RStests
+diagnostico_espacial <- lm.RStests(poisson_final, W_seleccionada, test = "all", zero.policy = TRUE)
+
+# 2. Mostrar los resultados
+print(diagnostico_espacial)
+
+# Indepedencia
+
+acf(residuals.glm(poisson_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(poisson_final)
+moran.test(residuals.glm(poisson_final),W_seleccionada)
+
+# Normalidad
+hist(residuals.glm(poisson_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(poisson_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(poisson_final), col = "red", lwd = 2)
+shapiro.test(residuals.glm(poisson_final))
+
+# Homoscedaticidad
+bptest(poisson_final)
+
+# sobredispersión
+check_overdispersion(poisson_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_poisson$deviance / fit_poisson$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+# Modelo quasi poisson ---------------------------------------------------------
+
+fit_qpoisson <- glm(LF88  ~ PERIMETER +  tasa_white_78 + cambio_68_78 , 
+                   offset = log(POPF88),
+                   family = quasipoisson(link = "log"), 
+                   data = ohlung)
+
+summary(fit_qpoisson)
+
+check_model(fit_qpoisson)
+check_overdispersion(fit_qpoisson)
+
+
+qpoisson_final <- glm(LF88  ~ tasa_white_78 , 
+                   offset = log(POPF88),
+                   family = quasipoisson(link = "log"), 
+                   data = ohlung)
+
+summary(qpoisson_final)
+
+lm.morantest(qpoisson_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(qpoisson_final)
+check_overdispersion(qpoisson_final)
+
+# independencia 
+acf(residuals.glm(qpoisson_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(qpoisson_final)
+moran.test(residuals.glm(qpoisson_final),W_seleccionada)
+
+# Normalidad
+hist(residuals.glm(qpoisson_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(qpoisson_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(qpoisson_final), col = "red", lwd = 2)
+shapiro.test(residuals.glm(qpoisson_final))
+
+# homoscedasticidad
+bptest(qpoisson_final)
+
+# sobredispersión
+check_overdispersion(qpoisson_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_qpoisson$deviance / fit_qpoisson$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+# Modelos binomial negativa----------------------------------------------------
+fit_bn <- glm.nb(LF88  ~ tasa_white_78 + cambio_68_78 + offset(log(POPF88)),
+                 data = ohlung)
+
+summary(fit_bn)
+
+check_model(fit_bn)
+check_overdispersion(fit_bn)
+
+
+bn_final <- stepAIC(fit_bn, direction = "both", trace = FALSE)
+
+summary(bn_final)
+
+lm.morantest(bn_final, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
+check_model(bn_final)
+check_overdispersion(bn_final)
+
+# Independencia
+acf(residuals.glm(bn_final), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(bn_final)
+moran.test(residuals.glm(bn_final),W_seleccionada)
+
+# Normalidad
+hist(residuals.glm(bn_final),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(bn_final), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(bn_final), col = "red", lwd = 2)
+shapiro.test(residuals.glm(bn_final))
+
+# homoscedasticidad
+bptest(bn_final)
+
+#Sobredispersión
+check_overdispersion(bn_final)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_bn$deviance / fit_bn$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+# Doblemente generalizado ------------------------------------------------------
+dglm_model <- dglm(formula = LF88 ~  scale(tasa_white_88) + 
+                  scale(cambio_68_78),
+  # El offset se añade fuera de la escala
+  offset = log(POPF88),
+                   family = poisson(link = "log"),
+                   dfamily = Gamma(link = "log"),   
+                   data = ohlung)
+
+summary(dglm_model)
+check_model(dglm_model)
+
+moran.test(residuals(dglm_model), W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+check_overdispersion(dglm_model)
+
+## Modelo media
+
+### independencia
+acf(residuals(dglm_model), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(dglm_model)
+
+### Normalidad
+hist(residuals(dglm_model),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model), col = "red", lwd = 2)
+shapiro.test(residuals(dglm_model))
+
+### Homoscedasticidad
+plot(fitted(dglm_model),
+     residuals(dglm_model,type="pearson"))
+abline(h=0,col="red")
+
+## Modelo dispersión
+### independencia
+moran.test(residuals(dglm_model$dispersion.fit),  W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+acf(residuals(dglm_model$dispersion.fit), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(dglm_model$dispersion.fit)
+
+### Normalidad
+hist(residuals(dglm_model$dispersion.fit),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals(dglm_model$dispersion.fit), main = "QQ-Plot de los residuales")
+qqline(residuals(dglm_model$dispersion.fit), col = "red", lwd = 2)
+shapiro.test(residuals(dglm_model$dispersion.fit))
+
+### Homoscedasticidad
+plot(fitted(dglm_model$dispersion.fit),
+     residuals(dglm_model$dispersion.fit))
+abline(h=0,col="red")
+
+# MESF--------------------------------------------------------------------------
+# 1. Identificación de eigenvectores significativos para un GLM (Poisson)
+# Se utiliza la función ME() específica para modelos lineales generalizados
+set.seed(1023) # Para reproducibilidad en las permutaciones
+filtros_espaciales <- ME(LF88 ~ tasa_white_78 + cambio_68_78, 
+                         data = ohlung, 
+                         offset = log(POPF88),
+                         family = poisson(link = "log"), 
+                         listw = W_seleccionada, 
+                         alpha = 0.1)
+
+# 2. Resumen de los filtros encontrados
+print(filtros_espaciales)
+
+# 3. Ajuste del modelo Poisson final incluyendo los filtros espaciales
+# Los filtros actúan como variables explicativas que capturan la estructura del error
+fit_poisson_espacial <- glm(LF88 ~ tasa_white_78 + cambio_68_78+ 
+                                   fitted(filtros_espaciales), 
+                            family = poisson(link = "log"), 
+                            data = ohlung, 
+                            offset = log(POPF88))
+
+summary(fit_poisson_espacial)
+check_model(fit_poisson_espacial)
+
+## Independecia 
+acf(residuals.glm(fit_poisson_espacial), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(fit_poisson_espacial)
+moran.test(residuals.glm(fit_poisson_espacial),W_seleccionada)
+
+## Normalidad 
+hist(residuals.glm(fit_poisson_espacial),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(fit_poisson_espacial), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(fit_poisson_espacial), col = "red", lwd = 2)
+shapiro.test(residuals.glm(fit_poisson_espacial))
+
+## Homoscedasticidad
+bptest(fit_poisson_espacial)
+
+## Sobredispersion
+check_overdispersion(fit_poisson_espacial)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_poisson_espacial$deviance / fit_poisson_espacial$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+# SLX---------------------------------------------------------------------------
+X <- ohlung[,c('tasa_hombre_68','tasa_hombre_78',
+               'tasa_hombre_88','tasa_white_88')] %>% sf::st_drop_geometry()
+WX_knn8 <- create_WX(X,W_seleccionada)
+colnames(WX_knn8) <- c('lag_hombre_68','lag_hombre_78',
+                       'lag_hombre_88','lag_white_88')
+data_ext_knn8 <- cbind(ohlung, WX_knn8)
+glmLSX_knn8 <- glm(LF88  ~  tasa_hombre_68 + tasa_hombre_78  +  tasa_hombre_88  +tasa_white_88 +
+                     lag_hombre_68+lag_hombre_78+
+                     lag_hombre_88+lag_white_88, 
+                   offset = log(POPF88),
+            data=data_ext_knn8,family = poisson(link = "log"))
+summary(glmLSX_knn8)
+## Indepedencia
+acf(residuals.glm(glmLSX_knn8), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(glmLSX_knn8)
+moran.test(residuals.glm(glmLSX_knn8),W_seleccionada)
+
+## Normalidad
+hist(residuals.glm(glmLSX_knn8),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glmLSX_knn8), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glmLSX_knn8), col = "red", lwd = 2)
+shapiro.test(residuals.glm(glmLSX_knn8))
+
+## Homoscedasticidad
+bptest(glmLSX_knn8)
+
+## Sobredispersion
+check_overdispersion(glmLSX_knn8)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- glmLSX_knn8$deviance / glmLSX_knn8$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+# Modelo lag + SLX--------------------------------------------------------------
+ohlung_ext <- cbind(ohlung,WY_knn8,WX_knn8)
+glmlagXY<- glm(LF88  ~ lag_hombre_68+lag_hombre_78+
+                     lag_hombre_88+lag_white_88+
+                     lag_LF88+lag_POPF88, 
+                   offset = log(POPF88),
+            data=ohlung_ext,family = poisson(link = "log"))
+summary(glmlagXY)
+
+## Indepedencia
+acf(residuals.glm(glmlagXY), main = "ACF de los residuales", col = "blue", lwd = 2)
+dwtest(glmlagXY)
+moran.test(residuals.glm(glmlagXY),W_seleccionada)
+
+## Normalidad
+hist(residuals.glm(glmlagXY),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glmlagXY), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glmlagXY), col = "red", lwd = 2)
+shapiro.test(residuals.glm(glmlagXY))
+
+
+## Homoscedasticidad
+bptest(glmlagXY)
+
+## Sobredispersión
+check_overdispersion(glmlagXY)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- glmlagXY$deviance / glmlagXY$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+```
+
+# Selección del mejor modelo
+
+Para seleccionar el mejor modelo realizamos el siguiente procedimiento:
+
+```{r}
+library(DiagrammeR)
+
+grViz("
+digraph modelo {
+
+  graph [
+    layout = dot,
+    rankdir = TB,
+    nodesep = 0.7,
+    ranksep = 0.9
+  ]
+
+  edge [
+    splines = ortho
+  ]
+
+  node [
+    shape = rectangle,
+    style = 'rounded, filled',
+    fillcolor = lightblue,
+    fontname = Helvetica
+  ]
+
+  # Procesos principales
+  inicio   [label = 'Modelo candidato']
+  sup      [label = 'Validar supuestos\\n(Homoscedasticidad y normalidad)']
+  espacial [label = '¿Independencia espacial?'
+            shape = diamond]
+  aic      [label = 'Comparar AIC']
+  mejor    [label = 'Mejor modelo',
+             shape = oval,
+             fillcolor = chartreuse3]
+
+  # Descartar
+  desc1 [label = 'Descartar modelo',
+         fillcolor = lightcoral]
+
+  # Flujo principal
+  inicio -> sup
+  sup -> espacial
+  espacial -> aic [label = 'Sí']
+  aic -> mejor
+
+  # Rama negativa
+  espacial -> desc1 [label = 'No']
+}
+")
+```
+
+## Comparación de Modelos Aspaciales y Espaciales
+
+Dado que los modelos de la familia quasipoisson no proporcionan un AIC estándar, implementamos una función para calcular el *QAIC* y comparamos la *Razón de Dispersión (Devianza)* y la *Autocorrelación (Moran)* entre los modelos ajustados.
+
+```{r comparacion-modelos-avanzada}
+library(performance)
+library(knitr)
+
+# 1. Función para calcular QAIC manualmente
+# Nota: Usamos el logLik del modelo Poisson base y la dispersión del Quasi
+calcular_qaic <- function(modelo_quasi, modelo_poisson_base) {
+  phi <- summary(modelo_quasi)$dispersion
+  ll <- as.numeric(logLik(modelo_poisson_base))
+  k <- length(coef(modelo_quasi))
+  return(-2 * ll / phi + 2 * k)
+}
+
+# Función para calcular QBIC (análogo al BIC para modelos Quasi)
+calcular_qbic <- function(modelo_quasi, modelo_poisson_base) {
+  phi <- summary(modelo_quasi)$dispersion
+  ll <- as.numeric(logLik(modelo_poisson_base))
+  k <- length(coef(modelo_quasi))
+  n <- length(residuals(modelo_quasi))
+  return(-2 * ll / phi + k * log(n))
+}
+
+# 2. Extracción de Razón de Dispersión y Moran
+get_diag <- function(modelo, w_mat) {
+  res <- residuals(modelo, type = "pearson")
+  m_test <- moran.test(res, w_mat, zero.policy = TRUE)
+  ratio <- sum(res^2) / df.residual(modelo)
+  return(list(ratio = ratio, moran_p = m_test$p.value))
+}
+
+# 3. Construcción de la Tabla Comparativa
+modelos_nombres <- c("MCO (Normal)", "Poisson Final", "Quasi-Poisson", "Poisson MESF", "Modelo LSX", 'Modelo lag', 'Modelo lag XY')
+
+tab_comp <- data.frame(
+  Modelo = modelos_nombres,
+  
+  # AIC / QAIC
+  AIC_QAIC = c(
+    AIC(mco_final), 
+    AIC(poisson_final), 
+    calcular_qaic(qpoisson_final, poisson_final),
+    AIC(fit_poisson_espacial),
+    AIC(glmLSX_knn8),
+    AIC(glmlag_knn8),
+    AIC(glmlagXY)
+  ),
+  
+  # BIC / QBIC
+  BIC_QBIC = c(
+    BIC(mco_final),
+    BIC(poisson_final),
+    calcular_qbic(qpoisson_final, poisson_final),
+    BIC(fit_poisson_espacial),
+    BIC(glmLSX_knn8),
+    BIC(glmlag_knn8),
+    BIC(glmlagXY)
+  ),
+
+  # Log-Likelihood (Pura medida de ajuste)
+  LogLik = c(
+    logLik(mco_final),
+    logLik(poisson_final),
+    NA, # Quasi-modelos no tienen LogLik real
+    logLik(fit_poisson_espacial),
+    logLik(glmLSX_knn8),
+    logLik(glmlag_knn8),
+    logLik(glmlagXY)
+  ),
+  
+  Dispersion_Ratio = c(
+    NA, # MCO no aplica ratio de conteo
+    check_overdispersion(poisson_final)$dispersion_ratio,
+    summary(qpoisson_final)$dispersion,
+    check_overdispersion(fit_poisson_espacial)$dispersion_ratio,
+    check_overdispersion(glmLSX_knn8)$dispersion_ratio,
+    check_overdispersion(glmlag_knn8)$dispersion_ratio,
+    check_overdispersion(glmlagXY)$dispersion_ratio
+  ),
+  
+  Moran_p_value = c(
+    get_diag(mco_final, W_seleccionada)$moran_p,
+    get_diag(poisson_final, W_seleccionada)$moran_p,
+    get_diag(qpoisson_final, W_seleccionada)$moran_p,
+    get_diag(fit_poisson_espacial, W_seleccionada)$moran_p,
+    get_diag(glmLSX_knn8,W_seleccionada)$moran_p,
+    get_diag(glmlag_knn8,W_seleccionada)$moran_p,
+    get_diag(glmlagXY,W_seleccionada)$moran_p
+  )
+)
+
+knitr::kable(tab_comp, digits = 4, caption = "Comparativa de Criterios de Información y Diagnóstico Espacial")
+```
