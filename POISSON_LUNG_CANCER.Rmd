@@ -1423,7 +1423,7 @@ diagnostico_espacial <- lm.RStests(poisson_final, W_seleccionada, test = "all", 
 print(diagnostico_espacial)
 
 ```
-
+En el modelo poisson final, todos los betas son significativos, no parece haber problemas de multicolinealidad.
 
 
 ### *Independecia*
@@ -1456,7 +1456,7 @@ qqline(residuals.glm(poisson_final), col = "red", lwd = 2)
 
 El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
 
-Para confirmar si l distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+Para confirmar si la distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
 
 ```{r normalidad prueba glm_qp}
 shapiro.test(residuals.glm(poisson_final))
@@ -1491,7 +1491,7 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 
 # Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
 ```
-
+El modelo parece presentar sobredispersión, por lo que se realizaron otros.
 
 ### 1.  Modelo quasi Poisson
 Para que la comparación sea válida, utilizaremos los mismos predictores, pero modelaremos el conteo con un `offset`.
@@ -1523,7 +1523,7 @@ check_model(qpoisson_final)
 check_overdispersion(qpoisson_final)
 
 ```
-
+En el quasi poisson todos los betas son significativos y no parece hber problemas de multicolinealidad.
 
 
 ### *Independecia*
@@ -1538,7 +1538,13 @@ El correlograma muestra que no parece haber una correlación fuerte en los resid
 ```{r independencia 2}
 dwtest(qpoisson_final)
 ```
-Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(qpoisson_final),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la $H_0$ de independencia espacial, es decir en los residuales se presenta dependencia espacial, y es motivo para realizar un modelo espacial.
+
 
 ### *Normalidad*
 
@@ -1548,14 +1554,14 @@ qqnorm(residuals.glm(qpoisson_final), main = "QQ-Plot de los residuales")
 qqline(residuals.glm(qpoisson_final), col = "red", lwd = 2)
 ```
 
-En el histograma podemos ver un ligero sesgo a derecha, y en el qqplot podemos ver que las observaciones no estan alrededor de la línea y que hay problemas bastante evidentes en las colas.
+En el histograma parece ser observada una distribución simétrica, casi centrada en 0, y en el qqplot podemos ver que las observaciones estan alrededor de la línea y no parece haber problemas serios en las colas.
 
-Para confirmar la sospecha de no normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
+Para confirmar normalidad se decidió hacer la prueba de $Shapiro-Wilk$ 
 
 ```{r normalidad prueba 2}
 shapiro.test(residuals.glm(qpoisson_final))
 ```
-De este modo confirmamos que la normalidad se rechaza con un p valor menor al nivel de significancia ($\alpha=0.05$)
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
 
 
 ### *Homocedasticidad*
@@ -1566,7 +1572,7 @@ Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la poblac
 bptest(qpoisson_final)
 
 ```
-Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+Al ser mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
 
 
 #### Verificación de Sobredispersión
@@ -1584,6 +1590,7 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 # Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
 ```
 
+Todavía detectamos sobredispersión, por lo que se decidió probar con una binomial negativa.
 
 
 ### 1. Binomial negativo
@@ -1611,7 +1618,7 @@ check_model(bn_final)
 check_overdispersion(bn_final)
 
 ```
-
+En el modelo final binomial negativo todos los betas son significativos.
 
 
 ### *Independecia*
@@ -1627,6 +1634,12 @@ El correlograma muestra que no parece haber una correlación fuerte en los resid
 dwtest(bn_final)
 ```
 Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores no estan correlacionados o son independientes, en pocas palabras se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(bn_final),W_seleccionada)
+```
+
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba con un p valor menor al nivel de significancia ($\alpha=0.05$) se rechaza la $H_0$ de independencia espacial, es decir en los residuales se presenta dependencia espacial, y es motivo para realizar un modelo espacial.
 
 ### *Normalidad*
 
@@ -1654,7 +1667,7 @@ Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la poblac
 bptest(bn_final)
 
 ```
-Al ser mucho menor a 0.05, rechazas la hipótesis nula de que la varianza es constante.
+Al ser mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
 
 
 #### Verificación de Sobredispersión
@@ -1671,7 +1684,7 @@ cat("Ratio de dispersión:", dispersion_ratio, "\n")
 
 # Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
 ```
-
+No se detecto sobredispersión.
 
 ### 1. Doblemente generalizado
 
@@ -1837,7 +1850,17 @@ res_poisson <- residuals(qpoisson_final, type = "pearson")
 
 # Test de Moran
 moran.test(res_poisson, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+# Cálculo de residuales de Pearson para el test de Moran
+res_bn <- residuals(bn_final, type = "pearson")
+
+# Test de Moran
+moran.test(res_bn, W_seleccionada, alternative = "two.sided", zero.policy = TRUE)
+
+
 ```
+En todos los modelos se rechaza la independecia espacial con un p valor menos al nivel de significancia.
+
 # Regresión espacial
 
 ## Ajuste del Modelo Espacial: Filtrado de Eigenvectores (MESF)
@@ -1871,19 +1894,72 @@ summary(fit_poisson_espacial)
 check_model(fit_poisson_espacial)
 ```
 
-### Verificación de Residuales Espaciales
+### *Independecia*
 
-Evaluamos si la inclusión de los eigenvectores eliminó la autocorrelación espacial detectada inicialmente.
-
-```{r diagnostico-post-espacial}
-# Test de Moran sobre los residuales del nuevo modelo espacial
-res_espaciales <- residuals(fit_poisson_espacial, type = "pearson")
-moran_post <- moran.test(res_espaciales, W_seleccionada, zero.policy = TRUE)
-print(moran_post)
-
-# Comparación de AIC para verificar la mejora en el ajuste
+```{r acf glm_SEM}
+acf(residuals.glm(fit_poisson_espacial), main = "ACF de los residuales", col = "blue", lwd = 2)
 
 ```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_SEM}
+dwtest(fit_poisson_espacial)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(fit_poisson_espacial),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba es un p valor apenas mayor al nivel de significancia ($\alpha=0.05$), por lo que podría no rechazar la $H_0$ de independecia espacial.
+
+
+### *Normalidad*
+
+```{r graficos normales glm_SEM}
+hist(residuals.glm(fit_poisson_espacial),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(fit_poisson_espacial), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(fit_poisson_espacial), col = "red", lwd = 2)
+```
+
+El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+
+Para confirmar si la distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_SEM}
+shapiro.test(residuals.glm(fit_poisson_espacial))
+```
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_SEM, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(fit_poisson_espacial)
+
+```
+Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+
+
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion sEM}
+
+check_overdispersion(fit_poisson_espacial)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- fit_poisson_espacial$deviance / fit_poisson_espacial$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+El modelo no parece presentar sobredispersión.
 
 ## SLX
 
@@ -1903,7 +1979,75 @@ glmLSX_knn8 <- glm(LF88  ~  tasa_white_78 + cambio_68_78 +
 summary(glmLSX_knn8)
 ```
 
-```{r mroan para queen y knn8}
+### *Independecia*
+
+```{r acf glm_LSX}
+acf(residuals.glm(glmLSX_knn8), main = "ACF de los residuales", col = "blue", lwd = 2)
+
+```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_LSX}
+dwtest(glmLSX_knn8)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(glmLSX_knn8),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba es un p valor mayor al nivel de significancia ($\alpha=0.05$), por lo que no se rechaza la $H_0$ de independecia espacial.
+
+
+### *Normalidad*
+
+```{r graficos normales glm_SLX}
+hist(residuals.glm(glmLSX_knn8),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glmLSX_knn8), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glmLSX_knn8), col = "red", lwd = 2)
+```
+
+El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+
+Para confirmar si la distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_SLX}
+shapiro.test(residuals.glm(glmLSX_knn8))
+```
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_SLX, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(glmLSX_knn8)
+
+```
+Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+
+
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion SLX}
+
+check_overdispersion(glmLSX_knn8)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- glmLSX_knn8$deviance / glmLSX_knn8$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+El modelo no parece presentar sobredispersión.
+
+
+```{r moran para queen y knn8}
 moran.test(residuals(glmLSX_knn8), listw = W_seleccionada)
 
 ```
@@ -1925,10 +2069,77 @@ glmlag_knn8 <- glm(LF88  ~ tasa_white_78 + cambio_68_78 +
             data=Y_ext_knn8,family = poisson(link = "log"))
 summary(glmlag_knn8)
 ```
-```{r moran modelos lag}
-moran.test(residuals(glmlag_knn8), listw = W_seleccionada)
+
+
+### *Independecia*
+
+```{r acf glm_lag}
+acf(residuals.glm(glmlag_knn8), main = "ACF de los residuales", col = "blue", lwd = 2)
 
 ```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_lag}
+dwtest(glmlag_knn8)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(glmlag_knn8),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba es un p valor mayor al nivel de significancia ($\alpha=0.05$), por lo que no se rechaza la $H_0$ de independecia espacial.
+
+
+### *Normalidad*
+
+```{r graficos normales glm_lag}
+hist(residuals.glm(glmlag_knn8),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glmlag_knn8), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glmlag_knn8), col = "red", lwd = 2)
+```
+
+El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+
+Para confirmar si la distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_lag}
+shapiro.test(residuals.glm(glmlag_knn8))
+```
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_lag, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(glmlag_knn8)
+
+```
+Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+
+
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion lag}
+
+check_overdispersion(glmlag_knn8)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- glmlag_knn8$deviance / glmlag_knn8$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+El modelo no parece presentar sobredispersión.
+
+
+## Modelo lag + LSX
 ```{r}
 ohlung_ext <- cbind(ohlung,WY_knn8,WX_knn8)
 glmlagXY<- glm(LF88  ~ tasa_white_78 + cambio_68_78 +
@@ -1938,10 +2149,73 @@ glmlagXY<- glm(LF88  ~ tasa_white_78 + cambio_68_78 +
             data=ohlung_ext,family = poisson(link = "log"))
 summary(glmlagXY)
 ```
-```{r moran modelos lag XY}
-moran.test(residuals(glmlagXY), listw = W_seleccionada)
+### *Independecia*
+
+```{r acf glm_lagXY}
+acf(residuals.glm(glmlagXY), main = "ACF de los residuales", col = "blue", lwd = 2)
 
 ```
+
+El correlograma muestra que no parece haber una correlación fuerte en los residuales, sin embargo, se decidió hacer una verificación más formal del supuesto de independencia en los errores, usando la prueba de Durbin Watson
+
+```{r independencia glm_lagXY}
+dwtest(glmlagXY)
+```
+Debido a que el p valor fue mayor al nivel de significancia ($\alpha=0.05$), se rechaza la $H_0:$ independencia, por lo que no hay evidencia suficiente estadística para creer que los errores estan correlacionados o no son independientes, en pocas palabras no se rechaza la independencia.
+
+```{r}
+moran.test(residuals.glm(glmlagXY),W_seleccionada)
+```
+Se aplico un test de moran para verificar que dentro de los residuales no hubiera dependencia espacial, ya que durbin watson identifica más una dependencia temporal. El resultado de esta prueba es un p valor mayor al nivel de significancia ($\alpha=0.05$), por lo que no se rechaza la $H_0$ de independecia espacial.
+
+
+### *Normalidad*
+
+```{r graficos normales glm_lagXY}
+hist(residuals.glm(glmlagXY),breaks = 50, main = "Histograma de los residuales", xlab = "Residuos", ylab = "Frecuencia", col = "lightblue", border = "white")
+qqnorm(residuals.glm(glmlagXY), main = "QQ-Plot de los residuales")
+qqline(residuals.glm(glmlagXY), col = "red", lwd = 2)
+```
+
+El histograma y el qqplot no son claros pues parece haber simetría, y la mayoría de los puntos estan alrededor de la línea, presentando un poco de problemas en las colas.
+
+Para confirmar si la distribución es o no normal se decidió hacer la prueba de $Shapiro-Wilk$ 
+
+```{r normalidad prueba glm_lagXY}
+shapiro.test(residuals.glm(glmlagXY))
+```
+De este modo confirmamos que la normalidad no se rechaza con un p valor mayor al nivel de significancia ($\alpha=0.05$)
+
+
+### *Homocedasticidad*
+
+Para evaluar la heteroscedasticidad formalmente, tomando en cuenta que la población no sigue o proviene de una distrincuón normal, se decidió aplicar el test de Breusch-pagan.
+
+```{r breusch-pagan glm_lagXY, echo=FALSE, message=FALSE, warning=FALSE}
+bptest(glmlagXY)
+
+```
+Al ser mucho mayor a 0.05, no se rechaza la hipótesis nula de que la varianza es constante.
+
+
+#### Verificación de Sobredispersión
+
+
+Si el parámetro de dispersión es mucho mayor a 1, el modelo Poisson estándar podría estar subestimando los errores estándar.
+
+```{r overdispersion lagXY}
+
+check_overdispersion(glmlag_knn8)
+
+# Test simple de sobredispersión (Ratio Chi-cuadrado / Grados de libertad)
+dispersion_ratio <- glmlag_knn8$deviance / glmlag_knn8$df.residual
+cat("Ratio de dispersión:", dispersion_ratio, "\n")
+
+
+# Si el ratio > 1.2-1.5, considera Quasi-Poisson o Binomial Negativa
+```
+El modelo no parece presentar sobredispersión.
+
 
 # Selección del mejor modelo
 
@@ -2009,28 +2283,99 @@ digraph modelo {
 ")
 ```
 
-### Comparacion de modelos por AIC
+## Comparación de Modelos Aspaciales y Espaciales
 
-```{r modelo-gp, fig.height=10, fig.width=10}
+Dado que los modelos de la familia quasipoisson no proporcionan un AIC estándar, implementamos una función para calcular el *QAIC* y comparamos la *Razón de Dispersión (Devianza)* y la *Autocorrelación (Moran)* entre los modelos ajustados.
 
-# Comparación de Criterios de Información (AIC)
-# Se espera que el AIC sea significativamente menor al del Poisson final (394.06)
-model_comparison <- data.frame(
-  Modelo = c("Normal", "Poisson Final", "Binom. Negativa", "quasi Poisson"),
-  AIC = c(AIC(mco_final), AIC(poisson_final), AIC(bn_final), AIC(qpoisson_final))
+```{r comparacion-modelos-avanzada}
+library(performance)
+library(knitr)
+
+# 1. Función para calcular QAIC manualmente
+# Nota: Usamos el logLik del modelo Poisson base y la dispersión del Quasi
+calcular_qaic <- function(modelo_quasi, modelo_poisson_base) {
+  phi <- summary(modelo_quasi)$dispersion
+  ll <- as.numeric(logLik(modelo_poisson_base))
+  k <- length(coef(modelo_quasi))
+  return(-2 * ll / phi + 2 * k)
+}
+
+# Función para calcular QBIC (análogo al BIC para modelos Quasi)
+calcular_qbic <- function(modelo_quasi, modelo_poisson_base) {
+  phi <- summary(modelo_quasi)$dispersion
+  ll <- as.numeric(logLik(modelo_poisson_base))
+  k <- length(coef(modelo_quasi))
+  n <- length(residuals(modelo_quasi))
+  return(-2 * ll / phi + k * log(n))
+}
+
+# 2. Extracción de Razón de Dispersión y Moran
+get_diag <- function(modelo, w_mat) {
+  res <- residuals(modelo, type = "pearson")
+  m_test <- moran.test(res, w_mat, zero.policy = TRUE)
+  ratio <- sum(res^2) / df.residual(modelo)
+  return(list(ratio = ratio, moran_p = m_test$p.value))
+}
+
+# 3. Construcción de la Tabla Comparativa
+modelos_nombres <- c("MCO (Normal)", "Poisson Final", "Quasi-Poisson", "Poisson MESF", "Modelo LSX", 'Modelo lag', 'Modelo lag XY')
+
+tab_comp <- data.frame(
+  Modelo = modelos_nombres,
+  
+  # AIC / QAIC
+  AIC_QAIC = c(
+    AIC(mco_final), 
+    AIC(poisson_final), 
+    calcular_qaic(qpoisson_final, poisson_final),
+    AIC(fit_poisson_espacial),
+    AIC(glmLSX_knn8),
+    AIC(glmlag_knn8),
+    AIC(glmlagXY)
+  ),
+  
+  # BIC / QBIC
+  BIC_QBIC = c(
+    BIC(mco_final),
+    BIC(poisson_final),
+    calcular_qbic(qpoisson_final, poisson_final),
+    BIC(fit_poisson_espacial),
+    BIC(glmLSX_knn8),
+    BIC(glmlag_knn8),
+    BIC(glmlagXY)
+  ),
+
+  # Log-Likelihood (Pura medida de ajuste)
+  LogLik = c(
+    logLik(mco_final),
+    logLik(poisson_final),
+    NA, # Quasi-modelos no tienen LogLik real
+    logLik(fit_poisson_espacial),
+    logLik(glmLSX_knn8),
+    logLik(glmlag_knn8),
+    logLik(glmlagXY)
+  ),
+  
+  Dispersion_Ratio = c(
+    NA, # MCO no aplica ratio de conteo
+    check_overdispersion(poisson_final)$dispersion_ratio,
+    summary(qpoisson_final)$dispersion,
+    check_overdispersion(fit_poisson_espacial)$dispersion_ratio,
+    check_overdispersion(glmLSX_knn8)$dispersion_ratio,
+    check_overdispersion(glmlag_knn8)$dispersion_ratio,
+    check_overdispersion(glmlagXY)$dispersion_ratio
+  ),
+  
+  Moran_p_value = c(
+    get_diag(mco_final, W_seleccionada)$moran_p,
+    get_diag(poisson_final, W_seleccionada)$moran_p,
+    get_diag(qpoisson_final, W_seleccionada)$moran_p,
+    get_diag(fit_poisson_espacial, W_seleccionada)$moran_p,
+    get_diag(glmLSX_knn8,W_seleccionada)$moran_p,
+    get_diag(glmlag_knn8,W_seleccionada)$moran_p,
+    get_diag(glmlagXY,W_seleccionada)$moran_p
+  )
 )
-print(model_comparison)
 
-# Si el p-valor es < 0.05, la Binomial Negativa es mejor que Poisson
-p_valor_test <- 1 - pchisq(2 * (logLik(poisson_final) - logLik(bn_final)), df = 1)
-print(paste("P-valor del test de sobredispersión:", p_valor_test))
+knitr::kable(tab_comp, digits = 4, caption = "Comparativa de Criterios de Información y Diagnóstico Espacial")
 ```
-```{r}
-AIC_comp <- data.frame(
-  Modelo = c("Poisson Final (Aspacial)", "Poisson MESF (Espacial)"),
-  AIC = c(AIC(poisson_final), AIC(fit_poisson_espacial))
-)
-print(AIC_comp)
-```
-
-
